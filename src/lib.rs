@@ -1,3 +1,35 @@
+//! # bevy_smooth_pixel_camera
+//!
+//! A bevy plugin that adds a simple smooth pixel camera.
+//!
+//! ## Usage
+//!
+//! 1. Add the `bevy_smooth_pixel_camera` crate to your project.
+//! ```sh
+//! cargo add bevy_smooth_pixel_camera
+//! ```
+//! 2. Add the `PixelCameraPlugin` and set the `ImagePlugin` to `default_nearest`.
+//! ```
+//! use bevy::prelude::*;
+//!
+//! App::new().add_plugins(
+//!     DefaultPlugins.set(ImagePlugin::default_nearest()),
+//!     PixelCameraPlugin
+//! )
+//! ```
+//! 3. Add a pixel pefect camera to your scene.
+//! ```
+//! use bevy::prelude::*;
+//!
+//! fn setup(mut commands: Commands) {
+//!     commands.spawn((
+//!         Camera2dBundle::default(),
+//!         PixelCamera::from_scale(4)
+//!     ));
+//! }
+//! ```
+//! 4. That should be it!
+
 use bevy::{
     prelude::*,
     render::{camera::RenderTarget, render_resource::*, view::RenderLayers},
@@ -10,7 +42,7 @@ use bevy::{
 /// pixelated camera.
 ///
 /// **Warning:** In order to move the camera please use the `subpixel_pos`
-/// attribute instead of the [`Transform`] component (the transform is a rounded version of subpixel_pos)
+/// attribute instead of the [`Transform`] component (the transform is a truncated version of subpixel_pos)
 #[derive(Component)]
 pub struct PixelCamera {
     /// The level of upscaling to use for pixels.
