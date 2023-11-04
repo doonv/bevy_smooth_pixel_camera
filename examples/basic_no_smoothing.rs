@@ -1,4 +1,6 @@
 //! A simple example of this crate having smooth camera movement while maintaining pixel perfection.
+//!
+//! Although this time, we disabled the camera smoothing for a true retro experience.
 
 use bevy::prelude::*;
 use bevy_smooth_pixel_camera::prelude::*;
@@ -25,7 +27,14 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn a 2d camera with the PixelCamera bundle in order to
     // turn it into a smooth pixel perfect camera.
-    commands.spawn((Camera2dBundle::default(), PixelCamera::from_scaling(32)));
+    commands.spawn((
+        Camera2dBundle::default(),
+        PixelCamera {
+            scaling: 32,
+            smoothing: false,
+            ..default()
+        },
+    ));
 
     // Spawn a checkerboard background
     commands.spawn(SpriteBundle {

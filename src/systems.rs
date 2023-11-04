@@ -1,4 +1,7 @@
-use bevy::{prelude::*, render::{render_resource::*, view::RenderLayers, camera::RenderTarget}};
+use bevy::{
+    prelude::*,
+    render::{camera::RenderTarget, render_resource::*, view::RenderLayers},
+};
 
 use crate::{components::*, get_viewport_size};
 
@@ -18,6 +21,7 @@ pub fn init_camera(
             viewport_order,
             scaling,
             viewport_layer,
+            smoothing,
             ..
         },
         mut camera,
@@ -43,7 +47,7 @@ pub fn init_camera(
             return;
         }
 
-        let size = get_viewport_size(&window.resolution, *scaling);
+        let size = get_viewport_size(&window.resolution, *scaling, *smoothing);
 
         // This is the texture that will be rendered to.
         let mut image = Image {
@@ -98,6 +102,33 @@ pub fn init_camera(
     }
 }
 
+pub fn update_viewport_size(
+    mut query: Query<(&PixelCamera, &mut Camera)>,
+    window_query: Query<&Window, Changed<Window>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let window = if let Ok(window) = window_query.get_single() {
+        window
+    } else {
+        return;
+    };
+
+    for (PixelCamera { scaling, smoothing, .. }, mut camera) in query.iter_mut() {
+        if let RenderTarget::Image(image_handle) = &mut camera.target {
+            // TODO: Remove the `.id()` part once https://github.com/bevyengine/bevy/pull/10372 gets merged
+            let image = images.get_mut(image_handle.id());
+
+            if let Some(image) = image {
+                let new_size = get_viewport_size(&window.resolution, *scaling, *smoothing);
+
+                image.resize(new_size);
+            } else {
+                error!("Pixel camera render target image doesn't exist!");
+            }
+        }
+    }
+}
+
 pub fn smooth_camera(
     mut query: Query<(&PixelCamera, &mut Transform, &PixelViewport)>,
     mut viewports: Query<&mut Transform, (With<PixelViewportMarker>, Without<PixelViewport>)>,
@@ -106,6 +137,7 @@ pub fn smooth_camera(
         PixelCamera {
             scaling,
             subpixel_pos,
+            smoothing,
             ..
         },
         mut camera_transform,
@@ -119,41 +151,16 @@ pub fn smooth_camera(
         camera_transform.translation.x = subpixel_pos.x.trunc();
         camera_transform.translation.y = subpixel_pos.y.trunc();
 
-        // In order to get smooth camera movement while retaining pixel perfection,
-        // we can move the viewport's transform by the remainder of the subpixel.
-        //
-        // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
-        let remainder_x = subpixel_pos.x % 1.;
-        let remainder_y = subpixel_pos.y % 1.;
+        if *smoothing {
+            // In order to get smooth camera movement while retaining pixel perfection,
+            // we can move the viewport's transform by the remainder of the subpixel.
+            //
+            // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
+            let remainder_x = subpixel_pos.x % 1.;
+            let remainder_y = subpixel_pos.y % 1.;
 
-        viewport_transform.translation.x = -remainder_x * scaling_f32;
-        viewport_transform.translation.y = -remainder_y * scaling_f32;
-    }
-}
-
-pub fn update_viewport_size(
-    mut query: Query<(&PixelCamera, &mut Camera)>,
-    window_query: Query<&Window, Changed<Window>>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let window = if let Ok(window) = window_query.get_single() {
-        window
-    } else {
-        return;
-    };
-
-    for (PixelCamera { scaling, .. }, mut camera) in query.iter_mut() {
-        if let RenderTarget::Image(image_handle) = &mut camera.target {
-            // TODO: Remove the `.id()` part once https://github.com/bevyengine/bevy/pull/10372 gets merged
-            let image = images.get_mut(image_handle.id());
-
-            if let Some(image) = image {
-                let new_size = get_viewport_size(&window.resolution, *scaling);
-
-                image.resize(new_size);
-            } else {
-                error!("Pixel camera render target image doesn't exist!");
-            }
+            viewport_transform.translation.x = -remainder_x * scaling_f32;
+            viewport_transform.translation.y = -remainder_y * scaling_f32;
         }
     }
 }

@@ -22,6 +22,8 @@ pub struct PixelCamera {
     pub viewport_order: isize,
     /// The rendering layer the viewport is on.
     pub viewport_layer: RenderLayers,
+    /// Whether camera position smoothing is enabled for this camera.
+    pub smoothing: bool,
 }
 
 impl Default for PixelCamera {
@@ -31,12 +33,13 @@ impl Default for PixelCamera {
             scaling: 2,
             viewport_layer: RenderLayers::layer(1),
             subpixel_pos: Vec2::ZERO,
+            smoothing: true,
         }
     }
 }
 
 impl PixelCamera {
-    /// Creates a new pixel camera with the `scaling` of choice.
+    /// Creates a new pixel camera with the `scaling` of choice and default configuration.
     pub fn from_scaling(scaling: u8) -> Self {
         Self {
             scaling,
@@ -45,7 +48,7 @@ impl PixelCamera {
     }
 }
 
-
+// TODO: Replace these components when we get entity relationships or something like that
 #[derive(Component)]
 pub struct PixelViewport(pub Entity);
 #[derive(Component)]
