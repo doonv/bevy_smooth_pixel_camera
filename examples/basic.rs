@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_smooth_pixel_camera::*;
+use bevy_smooth_pixel_camera::prelude::*;
 
 #[derive(Component)]
 struct BevyIcon;
