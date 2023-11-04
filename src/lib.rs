@@ -48,7 +48,7 @@ pub mod components;
 pub mod prelude;
 pub mod systems;
 
-/// The [`PixelCameraPlugin`] handles initialization and updates of the [`PixelCamera`].
+/// The [`PixelCameraPlugin`] handles initialization and updates of the [`PixelCamera`](components::PixelCamera).
 ///
 /// It also disables [`Msaa`].
 pub struct PixelCameraPlugin;
