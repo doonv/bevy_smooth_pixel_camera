@@ -213,8 +213,8 @@ fn smooth_camera(
         let scaling_f32 = *scaling as f32;
 
         // Set the camera transform the rounded down version of the subpixel position
-        camera_transform.translation.x = subpixel_pos.x.floor();
-        camera_transform.translation.y = subpixel_pos.y.floor();
+        camera_transform.translation.x = subpixel_pos.x.trunc();
+        camera_transform.translation.y = subpixel_pos.y.trunc();
 
         // In order to get smooth camera movement while retaining pixel perfection,
         // we can move the viewport's transform by the remainder of the subpixel.

@@ -27,7 +27,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         SpriteBundle {
             texture: asset_server.load("bevy_pixel_dark.png"),
-            transform: Transform::from_xyz(0.5, 0.5, 1.0),
+            transform: Transform::from_xyz(0.0, 0.0, 1.0),
             ..default()
         },
         BevyIcon,
@@ -40,7 +40,8 @@ fn update(
 ) {
     let mut camera = camera.single_mut();
 
-    camera.subpixel_pos.x = time.elapsed_seconds().sin() * 10.0;
+    camera.subpixel_pos.x = (time.elapsed_seconds() / 2.0).sin() * 10.0;
+    info!("{:?}", camera.subpixel_pos);
 
     let mut bevy_transform = bevy.single_mut();
 
