@@ -6,7 +6,7 @@ authors = ["Doonv"]
 description = "Smooth pixel-perfect camera for Bevy"
 repository = "https://github.com/doonv/bevy_smooth_pixel_camera"
 exclude = ["assets/", ".github/"]
-keywords = ["game", "gamedev", "graphics", "bevy", "pixel", "pixel-perfect"]
+keywords = ["game", "graphics", "bevy", "pixel", "pixel-perfect"]
 license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
