@@ -13,7 +13,7 @@
 //! cargo add bevy_smooth_pixel_camera
 //! ```
 //! 2. Add the `PixelCameraPlugin` and set the `ImagePlugin` to `default_nearest`.
-//! ```
+//! ```no_run
 //! use bevy::prelude::*;
 //! use bevy_smooth_pixel_camera::prelude::*;
 //!

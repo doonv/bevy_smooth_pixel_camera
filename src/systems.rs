@@ -113,7 +113,13 @@ pub fn update_viewport_size(
         return;
     };
 
-    for (PixelCamera { scaling, smoothing, .. }, mut camera) in query.iter_mut() {
+    for (
+        PixelCamera {
+            scaling, smoothing, ..
+        },
+        mut camera,
+    ) in query.iter_mut()
+    {
         if let RenderTarget::Image(image_handle) = &mut camera.target {
             // TODO: Remove the `.id()` part once https://github.com/bevyengine/bevy/pull/10372 gets merged
             let image = images.get_mut(image_handle.id());
