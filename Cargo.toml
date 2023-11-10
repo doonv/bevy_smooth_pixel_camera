@@ -1,6 +1,6 @@
 [package]
 name = "bevy_smooth_pixel_camera"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Doonv"]
 description = "Smooth pixel-perfect camera for Bevy"
@@ -12,4 +12,10 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bevy = { version = "0.12.0", default-features = false, features = [
+    "bevy_core_pipeline",
+    "bevy_sprite",
+] }
+
+[dev-dependencies]
 bevy = "0.12.0"
