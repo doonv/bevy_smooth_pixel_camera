@@ -1,5 +1,8 @@
 # bevy_smooth_pixel_camera
 
+[![crates.io](https://img.shields.io/crates/v/bevy_smooth_pixel_camera)](https://crates.io/crates/bevy_smooth_pixel_camera)
+[![docs.rs](https://docs.rs/bevy_smooth_pixel_camera/badge.svg)](https://docs.rs/bevy_smooth_pixel_camera)
+
 A bevy plugin that adds a simple smooth pixel camera.
 
 The smoothing is based on this video from aarthificial which explains how it works pretty nicely: <https://youtu.be/jguyR4yJb1M>
