@@ -9,7 +9,6 @@ struct BevyIcon;
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::BLACK))
         .add_plugins((
             // Set the ImagePlugin to have nearest neighbor sampling
             // This prevents our sprites from becoming blurry
@@ -25,7 +24,10 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn a 2d camera with the PixelCamera bundle in order to
     // turn it into a smooth pixel perfect camera.
-    commands.spawn((Camera2dBundle::default(), PixelCamera::from_scaling(32)));
+    commands.spawn((
+        Camera2dBundle::default(),
+        PixelCamera::from_size(ViewportSize::PixelFixed(32)),
+    ));
 
     // Spawn a checkerboard background
     commands.spawn(SpriteBundle {

@@ -12,35 +12,41 @@ This method allows for smooth camera movement while retaining the pixel perfecti
 ## Usage
 
 1. Add the `bevy_smooth_pixel_camera` crate to your project.
-```sh
-cargo add bevy_smooth_pixel_camera
-```
+
+    ```sh
+    cargo add bevy_smooth_pixel_camera
+    ```
+
 2. Add the `PixelCameraPlugin` and set the `ImagePlugin` to `default_nearest`.
-```rs
-use bevy::prelude::*;
-use bevy_smooth_pixel_camera::prelude::*;
 
-App::new().add_plugins((
-    DefaultPlugins.set(ImagePlugin::default_nearest()),
-    PixelCameraPlugin
-));
-```
+    ```rust,no_run
+    use bevy::prelude::*;
+    use bevy_smooth_pixel_camera::prelude::*;
+
+    App::new().add_plugins((
+        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        PixelCameraPlugin
+    )).run();
+    ```
+
 3. Add a pixel pefect camera to your scene.
-```rs
-use bevy::prelude::*;
-use bevy_smooth_pixel_camera::prelude::*;
 
-fn setup(mut commands: Commands) {
-    commands.spawn((
-        Camera2dBundle::default(),
-        PixelCamera::from_scaling(4)
-    ));
-}
-```
+    ```rust
+    use bevy::prelude::*;
+    use bevy_smooth_pixel_camera::prelude::*;
+
+    fn setup(mut commands: Commands) {
+        commands.spawn((
+            Camera2dBundle::default(),
+            PixelCamera::from_size(ViewportSize::PixelFixed(4))
+        ));
+    }
+    ```
+
 4. That should be it! Make sure you move your camera via the `PixelCamera.subpixel_pos` property instead of the `Transform` component.
 
 ## Bevy Compatibility
 
 | bevy   | bevy_smooth_pixel_camera |
 | ------ | ------------------------ |
-| 0.12.0 | 0.1.0                    |
+| 0.12.0 | 0.1.*                    |

@@ -1,9 +1,14 @@
 use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
-    render::{camera::RenderTarget, render_resource::*, view::RenderLayers},
+    render::{
+        camera::{RenderTarget, ScalingMode},
+        render_resource::*,
+        view::RenderLayers,
+    },
 };
 
-use crate::{components::*, get_viewport_size};
+use crate::{components::*, prelude::ViewportSize, viewport::FitMode};
 
 pub fn init_camera(
     mut query: Query<
@@ -19,7 +24,7 @@ pub fn init_camera(
     for (
         PixelCamera {
             viewport_order,
-            scaling,
+            viewport_size,
             viewport_layer,
             smoothing,
             ..
@@ -27,7 +32,7 @@ pub fn init_camera(
         mut camera,
         world_layer,
         entity,
-    ) in query.iter_mut()
+    ) in &mut query
     {
         if let Some(world_layer) = world_layer {
             if world_layer.intersects(viewport_layer) {
@@ -47,7 +52,11 @@ pub fn init_camera(
             return;
         }
 
-        let size = get_viewport_size(&window.resolution, *scaling, *smoothing);
+        let mut size = viewport_size.calculate(&window.resolution);
+        if *smoothing {
+            size.width += 2;
+            size.height += 2;
+        }
 
         // This is the texture that will be rendered to.
         let mut image = Image {
@@ -73,60 +82,130 @@ pub fn init_camera(
 
         camera.target = RenderTarget::Image(image_handle.clone());
 
-        let viewport_entity = commands
+        let viewport_sprite = commands
             .spawn((
                 SpriteBundle {
-                    texture: image_handle.clone(),
-                    transform: Transform::from_scale(Vec2::splat(*scaling as f32).extend(1.0)),
+                    texture: image_handle,
+                    transform: Transform::from_scale(Vec3::splat(1.0)),
                     ..default()
                 },
                 *viewport_layer,
-                PixelViewportMarker,
+                PixelViewport,
             ))
             .id();
 
-        commands.spawn((
-            Camera2dBundle {
-                camera: Camera {
-                    order: *viewport_order,
+        let viewport_camera = commands
+            .spawn((
+                Camera2dBundle {
+                    camera: Camera {
+                        order: *viewport_order,
+                        ..default()
+                    },
+                    camera_2d: Camera2d {
+                        clear_color: ClearColorConfig::Custom(Color::BLACK),
+                    },
+                    projection: OrthographicProjection {
+                        far: 1000.,
+                        near: -1000.,
+                        scaling_mode: ScalingMode::Fixed {
+                            width: (size.width - 2) as f32,
+                            height: (size.height - 2) as f32,
+                        },
+                        ..default()
+                    },
+
                     ..default()
                 },
-                ..default()
-            },
-            *viewport_layer,
-        ));
+                ViewportCamera,
+                *viewport_layer,
+            ))
+            .id();
 
-        commands
-            .entity(entity)
-            .insert(PixelViewport(viewport_entity));
+        commands.entity(entity).insert(PixelViewportReferences {
+            sprite: viewport_sprite,
+            camera: viewport_camera,
+        });
     }
 }
 
 pub fn update_viewport_size(
-    mut query: Query<(&PixelCamera, &mut Camera)>,
+    mut primary_cameras: Query<
+        (&PixelCamera, &mut Camera, &PixelViewportReferences),
+        Without<ViewportCamera>,
+    >,
+    mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera2d), With<ViewportCamera>>,
     window_query: Query<&Window, Changed<Window>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let window = if let Ok(window) = window_query.get_single() {
-        window
-    } else {
+    let Ok(window) = window_query.get_single() else {
         return;
     };
 
     for (
         PixelCamera {
-            scaling, smoothing, ..
+            viewport_size,
+            smoothing,
+            ..
         },
         mut camera,
-    ) in query.iter_mut()
+        viewport,
+    ) in &mut primary_cameras
     {
+        let mut new_size = viewport_size.calculate(&window.resolution);
+        if let Ok((mut projection, mut camera_2d)) = viewport_cameras.get_mut(viewport.camera) {
+            projection.scaling_mode = if let ViewportSize::Fixed { fit, .. }
+            | ViewportSize::Custom { fit, .. } = viewport_size
+            {
+                match fit {
+                    FitMode::Fit(clear_color) => {
+                        camera_2d.clear_color = clear_color.clone();
+                        if window.width() / window.height()
+                            > new_size.width as f32 / new_size.height as f32
+                        {
+                            ScalingMode::Fixed {
+                                width: new_size.height as f32 * (window.width() / window.height()),
+                                height: new_size.height as f32,
+                            }
+                        } else {
+                            ScalingMode::Fixed {
+                                width: new_size.width as f32,
+                                height: new_size.width as f32 / (window.width() / window.height()),
+                            }
+                        }
+                    }
+                    FitMode::Crop => {
+                        let axis = new_size.height.min(new_size.width);
+                        if window.width() / window.height() > 1.0 {
+                            ScalingMode::Fixed {
+                                width: axis as f32,
+                                height: axis as f32 / (window.width() / window.height()),
+                            }
+                        } else {
+                            ScalingMode::Fixed {
+                                width: axis as f32 * (window.width() / window.height()),
+                                height: axis as f32,
+                            }
+                        }
+                    }
+                    FitMode::Stretch => ScalingMode::Fixed {
+                        width: new_size.width as f32,
+                        height: new_size.height as f32,
+                    },
+                }
+            } else {
+                ScalingMode::Fixed {
+                    width: new_size.width as f32,
+                    height: new_size.height as f32,
+                }
+            }
+        }
+        if *smoothing {
+            new_size.width += 2;
+            new_size.height += 2;
+        }
         if let RenderTarget::Image(image_handle) = &mut camera.target {
-            // TODO: Remove the `.id()` part once https://github.com/bevyengine/bevy/pull/10372 gets merged
-            let image = images.get_mut(image_handle.id());
-
-            if let Some(image) = image {
-                let new_size = get_viewport_size(&window.resolution, *scaling, *smoothing);
-
+            // TODO: Remove the `.id()` part once 0.13 has released
+            if let Some(image) = images.get_mut(image_handle.id()) {
                 image.resize(new_size);
             } else {
                 error!("Pixel camera render target image doesn't exist!");
@@ -134,39 +213,54 @@ pub fn update_viewport_size(
         }
     }
 }
+/// Set the camera transform the rounded down version of the subpixel position
+pub fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
+    for (PixelCamera { subpixel_pos, .. }, mut transform) in &mut cameras {
+        transform.translation.x = subpixel_pos.x.trunc();
+        transform.translation.y = subpixel_pos.y.trunc();
+    }
+}
 
+/// Smooth the camera's subpixel position
+#[allow(clippy::type_complexity)]
 pub fn smooth_camera(
-    mut query: Query<(&PixelCamera, &mut Transform, &PixelViewport)>,
-    mut viewports: Query<&mut Transform, (With<PixelViewportMarker>, Without<PixelViewport>)>,
+    mut cameras: Query<(&PixelCamera, &PixelViewportReferences)>,
+    mut viewports: Query<
+        (&mut Sprite, &Handle<Image>),
+        (With<PixelViewport>, Without<PixelViewportReferences>),
+    >,
+    images: Res<Assets<Image>>,
 ) {
     for (
         PixelCamera {
-            scaling,
             subpixel_pos,
             smoothing,
             ..
         },
-        mut camera_transform,
         viewport,
-    ) in query.iter_mut()
+    ) in &mut cameras
     {
-        let mut viewport_transform = viewports.get_mut(viewport.0).unwrap();
-        let scaling_f32 = *scaling as f32;
-
-        // Set the camera transform the rounded down version of the subpixel position
-        camera_transform.translation.x = subpixel_pos.x.trunc();
-        camera_transform.translation.y = subpixel_pos.y.trunc();
-
-        if *smoothing {
-            // In order to get smooth camera movement while retaining pixel perfection,
-            // we can move the viewport's transform by the remainder of the subpixel.
-            //
-            // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
-            let remainder_x = subpixel_pos.x % 1.;
-            let remainder_y = subpixel_pos.y % 1.;
-
-            viewport_transform.translation.x = -remainder_x * scaling_f32;
-            viewport_transform.translation.y = -remainder_y * scaling_f32;
+        if !smoothing {
+            continue;
         }
+        let (mut sprite, handle) = viewports.get_mut(viewport.sprite).unwrap();
+        let Some(image) = images.get(handle) else {
+            error!(
+                "Pixel camera viewport ({:?}) image doesn't exist",
+                viewport.sprite
+            );
+            continue;
+        };
+
+        // In order to get smooth camera movement while retaining pixel perfection,
+        // we can move the viewport's transform by the remainder of the subpixel.
+        //
+        // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
+        let remainder = *subpixel_pos % 1.0;
+
+        sprite.rect = Some(Rect {
+            min: Vec2::ONE + remainder,
+            max: image.size_f32() - Vec2::ONE + remainder,
+        })
     }
 }
