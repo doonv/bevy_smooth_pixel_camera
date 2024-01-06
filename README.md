@@ -49,4 +49,4 @@ This method allows for smooth camera movement while retaining the pixel perfecti
 
 | bevy   | bevy_smooth_pixel_camera |
 | ------ | ------------------------ |
-| 0.12.0 | 0.1.*                    |
+| 0.12.* | 0.1.0 - 0.2.0            |
