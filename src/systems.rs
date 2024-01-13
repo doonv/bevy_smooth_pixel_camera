@@ -10,7 +10,7 @@ use bevy::{
 
 use crate::{components::*, prelude::ViewportSize, viewport::FitMode};
 
-pub fn init_camera(
+pub(crate) fn init_camera(
     mut query: Query<
         (&PixelCamera, &mut Camera, Option<&RenderLayers>, Entity),
         Added<PixelCamera>,
@@ -128,7 +128,7 @@ pub fn init_camera(
     }
 }
 
-pub fn update_viewport_size(
+pub(crate) fn update_viewport_size(
     mut primary_cameras: Query<
         (&PixelCamera, &mut Camera, &PixelViewportReferences),
         Without<ViewportCamera>,
@@ -214,7 +214,7 @@ pub fn update_viewport_size(
     }
 }
 /// Set the camera transform the rounded down version of the subpixel position
-pub fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
+pub(crate) fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
     for (PixelCamera { subpixel_pos, .. }, mut transform) in &mut cameras {
         transform.translation.x = subpixel_pos.x.trunc();
         transform.translation.y = subpixel_pos.y.trunc();
@@ -223,7 +223,7 @@ pub fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
 
 /// Smooth the camera's subpixel position
 #[allow(clippy::type_complexity)]
-pub fn smooth_camera(
+pub(crate) fn smooth_camera(
     mut cameras: Query<(&PixelCamera, &PixelViewportReferences)>,
     mut viewports: Query<
         (&mut Sprite, &Handle<Image>),
