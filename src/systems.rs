@@ -1,14 +1,11 @@
-use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
-    prelude::*,
-    render::{
-        camera::{RenderTarget, ScalingMode},
-        render_resource::*,
-        view::RenderLayers,
-    },
-};
+use bevy::prelude::*;
+use bevy::render::camera::{RenderTarget, ScalingMode};
+use bevy::render::render_resource::*;
+use bevy::render::view::RenderLayers;
 
-use crate::{components::*, prelude::ViewportSize, viewport::FitMode};
+use crate::components::*;
+use crate::prelude::ViewportSize;
+use crate::viewport::FitMode;
 
 pub(crate) fn init_camera(
     mut query: Query<
@@ -99,10 +96,8 @@ pub(crate) fn init_camera(
                 Camera2dBundle {
                     camera: Camera {
                         order: *viewport_order,
+                        clear_color: viewport_size.clear_color(),
                         ..default()
-                    },
-                    camera_2d: Camera2d {
-                        clear_color: ClearColorConfig::Custom(Color::BLACK),
                     },
                     projection: OrthographicProjection {
                         far: 1000.,
@@ -129,14 +124,21 @@ pub(crate) fn init_camera(
 }
 
 pub(crate) fn update_viewport_size(
-    mut primary_cameras: Query<
-        (&PixelCamera, &mut Camera, &PixelViewportReferences),
+    primary_cameras: Query<
+        (&PixelCamera, &Camera, &PixelViewportReferences),
         Without<ViewportCamera>,
     >,
-    mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera2d), With<ViewportCamera>>,
+    mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera), With<ViewportCamera>>,
     window_query: Query<&Window, Changed<Window>>,
     mut images: ResMut<Assets<Image>>,
 ) {
+    // TODO: Remove this.
+    // Temporary fix for <https://github.com/bevyengine/bevy/issues/11240>
+    for (_, camera, _) in &primary_cameras {
+        if let RenderTarget::Image(image_handle) = &camera.target {
+            images.get_mut(image_handle.id());
+        }
+    }
     let Ok(window) = window_query.get_single() else {
         return;
     };
@@ -147,18 +149,18 @@ pub(crate) fn update_viewport_size(
             smoothing,
             ..
         },
-        mut camera,
+        camera,
         viewport,
-    ) in &mut primary_cameras
+    ) in &primary_cameras
     {
         let mut new_size = viewport_size.calculate(&window.resolution);
-        if let Ok((mut projection, mut camera_2d)) = viewport_cameras.get_mut(viewport.camera) {
+        if let Ok((mut projection, mut camera)) = viewport_cameras.get_mut(viewport.camera) {
             projection.scaling_mode = if let ViewportSize::Fixed { fit, .. }
             | ViewportSize::Custom { fit, .. } = viewport_size
             {
                 match fit {
                     FitMode::Fit(clear_color) => {
-                        camera_2d.clear_color = clear_color.clone();
+                        camera.clear_color = clear_color.clone();
                         if window.width() / window.height()
                             > new_size.width as f32 / new_size.height as f32
                         {
@@ -203,7 +205,7 @@ pub(crate) fn update_viewport_size(
             new_size.width += 2;
             new_size.height += 2;
         }
-        if let RenderTarget::Image(image_handle) = &mut camera.target {
+        if let RenderTarget::Image(image_handle) = &camera.target {
             // TODO: Remove the `.id()` part once 0.13 has released
             if let Some(image) = images.get_mut(image_handle.id()) {
                 image.resize(new_size);

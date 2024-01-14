@@ -1,9 +1,8 @@
 //! Viewport Scaling and Stretching.
 
-use bevy::{
-    core_pipeline::clear_color::ClearColorConfig, render::render_resource::Extent3d,
-    window::WindowResolution,
-};
+use bevy::render::camera::ClearColorConfig;
+use bevy::render::render_resource::Extent3d;
+use bevy::window::WindowResolution;
 
 /// The way the viewport scales to fit the window.
 #[doc(alias = "stretching")]
@@ -156,6 +155,23 @@ impl ViewportSize {
                     depth_or_array_layers: 1,
                 }
             }
+        }
+    }
+    /// Returns the clear color for this [`ViewportSize`] if the current variant 
+    /// has a [`FitMode::Fit`], otherwise returns [`ClearColorConfig::None`].
+    pub fn clear_color(&self) -> ClearColorConfig {
+        if let ViewportSize::Fixed {
+            fit: FitMode::Fit(config),
+            ..
+        }
+        | ViewportSize::Custom {
+            fit: FitMode::Fit(config),
+            ..
+        } = self
+        {
+            config.clone()
+        } else {
+            ClearColorConfig::None
         }
     }
 }

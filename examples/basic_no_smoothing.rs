@@ -11,7 +11,6 @@ struct BevyIcon;
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::BLACK))
         .add_plugins((
             // Set the ImagePlugin to have nearest neighbor sampling
             // This prevents our sprites from becoming blurry

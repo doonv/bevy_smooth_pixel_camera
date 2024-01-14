@@ -1,6 +1,7 @@
 //! The components of [`bevy_smooth_pixel_camera`](crate).
 
-use bevy::{prelude::*, render::view::RenderLayers};
+use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
 
 use crate::viewport::ViewportSize;
 
