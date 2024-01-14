@@ -157,7 +157,7 @@ impl ViewportSize {
             }
         }
     }
-    /// Returns the clear color for this [`ViewportSize`] if the current variant 
+    /// Returns the clear color for this [`ViewportSize`] if the current variant
     /// has a [`FitMode::Fit`], otherwise returns [`ClearColorConfig::None`].
     pub fn clear_color(&self) -> ClearColorConfig {
         if let ViewportSize::Fixed {
