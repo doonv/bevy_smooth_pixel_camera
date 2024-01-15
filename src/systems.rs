@@ -136,7 +136,7 @@ pub(crate) fn update_viewport_size(
     // Temporary fix for <https://github.com/bevyengine/bevy/issues/11240>
     for (_, camera, _) in &primary_cameras {
         if let RenderTarget::Image(image_handle) = &camera.target {
-            images.get_mut(image_handle.id());
+            images.get_mut(image_handle);
         }
     }
     let Ok(window) = window_query.get_single() else {
@@ -206,8 +206,7 @@ pub(crate) fn update_viewport_size(
             new_size.height += 2;
         }
         if let RenderTarget::Image(image_handle) = &camera.target {
-            // TODO: Remove the `.id()` part once 0.13 has released
-            if let Some(image) = images.get_mut(image_handle.id()) {
+            if let Some(image) = images.get_mut(image_handle) {
                 image.resize(new_size);
             } else {
                 error!("Pixel camera render target image doesn't exist!");
