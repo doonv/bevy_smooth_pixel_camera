@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::{RenderTarget, ScalingMode};
 use bevy::render::render_resource::*;
 use bevy::render::view::RenderLayers;
+use bevy::window::{PrimaryWindow, WindowRef};
 
 use crate::components::*;
 use crate::prelude::ViewportSize;
@@ -129,7 +130,8 @@ pub(crate) fn update_viewport_size(
         Without<ViewportCamera>,
     >,
     mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera), With<ViewportCamera>>,
-    window_query: Query<&Window, Changed<Window>>,
+    windows: Query<&Window, Changed<Window>>,
+    primary_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
     mut images: ResMut<Assets<Image>>,
 ) {
     // TODO: Remove this.
@@ -139,9 +141,6 @@ pub(crate) fn update_viewport_size(
             images.get_mut(image_handle);
         }
     }
-    let Ok(window) = window_query.get_single() else {
-        return;
-    };
 
     for (
         PixelCamera {
@@ -153,54 +152,95 @@ pub(crate) fn update_viewport_size(
         viewport,
     ) in &primary_cameras
     {
-        let mut new_size = viewport_size.calculate(&window.resolution);
-        if let Ok((mut projection, mut camera)) = viewport_cameras.get_mut(viewport.camera) {
-            projection.scaling_mode = if let ViewportSize::Fixed { fit, .. }
-            | ViewportSize::Custom { fit, .. } = viewport_size
-            {
-                match fit {
-                    FitMode::Fit(clear_color) => {
-                        camera.clear_color = clear_color.clone();
-                        if window.width() / window.height()
-                            > new_size.width as f32 / new_size.height as f32
-                        {
-                            ScalingMode::Fixed {
-                                width: new_size.height as f32 * (window.width() / window.height()),
-                                height: new_size.height as f32,
-                            }
-                        } else {
-                            ScalingMode::Fixed {
-                                width: new_size.width as f32,
-                                height: new_size.width as f32 / (window.width() / window.height()),
-                            }
-                        }
-                    }
-                    FitMode::Crop => {
-                        let axis = new_size.height.min(new_size.width);
-                        if window.width() / window.height() > 1.0 {
-                            ScalingMode::Fixed {
-                                width: axis as f32,
-                                height: axis as f32 / (window.width() / window.height()),
-                            }
-                        } else {
-                            ScalingMode::Fixed {
-                                width: axis as f32 * (window.width() / window.height()),
-                                height: axis as f32,
-                            }
-                        }
-                    }
-                    FitMode::Stretch => ScalingMode::Fixed {
-                        width: new_size.width as f32,
-                        height: new_size.height as f32,
+        let Ok((mut viewport_projection, mut viewport_camera)) = viewport_cameras.get_mut(viewport.camera) else {
+            continue;
+        };
+        let (mut new_size, aspect_ratio) = match &viewport_camera.target {
+            RenderTarget::Window(window_ref) => {
+                let window = match window_ref {
+                    WindowRef::Primary => if let Ok(window) = primary_window.get_single() {
+                        window
+                    } else {
+                        continue;
                     },
+                    &WindowRef::Entity(entity) => if let Ok(window) = windows.get(entity) {
+                        window
+                    } else {
+                        continue;
+                    },
+                };
+                let new_size = viewport_size.calculate(&window.resolution);
+                let aspect_ratio = window.width() / window.height();
+
+                (new_size, aspect_ratio)
+            }
+            RenderTarget::Image(image) => {
+                let image = images
+                    .get(image)
+                    .expect("RenderTarget::Image doesn't exist");
+                let size = image.size();
+
+                let new_size = Extent3d {
+                    width: size.x,
+                    height: size.y,
+                    ..default()
+                };
+                let aspect_ratio = size.x as f32 / size.y as f32;
+
+                (new_size, aspect_ratio)
+            }
+            RenderTarget::TextureView(_) => {
+                error_once!(
+                    "RenderTarget::TextureView is not yet supported for `bevy_smooth_pixel_camera`"
+                );
+                return;
+            }
+        };
+
+        viewport_projection.scaling_mode = if let ViewportSize::Fixed { fit, .. }
+        | ViewportSize::Custom { fit, .. } = viewport_size
+        {
+            match fit {
+                FitMode::Fit(clear_color) => {
+                    viewport_camera.clear_color = clear_color.clone();
+                    if aspect_ratio > new_size.width as f32 / new_size.height as f32 {
+                        ScalingMode::Fixed {
+                            width: new_size.height as f32 * (aspect_ratio),
+                            height: new_size.height as f32,
+                        }
+                    } else {
+                        ScalingMode::Fixed {
+                            width: new_size.width as f32,
+                            height: new_size.width as f32 / (aspect_ratio),
+                        }
+                    }
                 }
-            } else {
-                ScalingMode::Fixed {
+                FitMode::Crop => {
+                    let axis = new_size.height.min(new_size.width);
+                    if aspect_ratio > 1.0 {
+                        ScalingMode::Fixed {
+                            width: axis as f32,
+                            height: axis as f32 / (aspect_ratio),
+                        }
+                    } else {
+                        ScalingMode::Fixed {
+                            width: axis as f32 * (aspect_ratio),
+                            height: axis as f32,
+                        }
+                    }
+                }
+                FitMode::Stretch => ScalingMode::Fixed {
                     width: new_size.width as f32,
                     height: new_size.height as f32,
-                }
+                },
             }
-        }
+        } else {
+            ScalingMode::Fixed {
+                width: new_size.width as f32,
+                height: new_size.height as f32,
+            }
+        };
+
         if *smoothing {
             new_size.width += 2;
             new_size.height += 2;
