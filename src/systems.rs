@@ -126,23 +126,24 @@ pub(crate) fn init_camera(
 
 pub(crate) fn update_viewport_size(
     primary_cameras: Query<
-        (&PixelCamera, &Camera, &PixelViewportReferences),
+        (Entity, &PixelCamera, &Camera, &PixelViewportReferences),
         Without<ViewportCamera>,
     >,
     mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera), With<ViewportCamera>>,
-    windows: Query<&Window, Changed<Window>>,
-    primary_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+    windows: Query<Ref<Window>>,
+    primary_window: Query<Ref<Window>, With<PrimaryWindow>>,
     mut images: ResMut<Assets<Image>>,
 ) {
     // TODO: Remove this.
     // Temporary fix for <https://github.com/bevyengine/bevy/issues/11240>
-    for (_, camera, _) in &primary_cameras {
+    for (_, _, camera, _) in &primary_cameras {
         if let RenderTarget::Image(image_handle) = &camera.target {
             images.get_mut(image_handle);
         }
     }
 
     for (
+        entity,
         PixelCamera {
             viewport_size,
             smoothing,
@@ -152,23 +153,36 @@ pub(crate) fn update_viewport_size(
         viewport,
     ) in &primary_cameras
     {
-        let Ok((mut viewport_projection, mut viewport_camera)) = viewport_cameras.get_mut(viewport.camera) else {
+        let Ok((mut viewport_projection, mut viewport_camera)) =
+            viewport_cameras.get_mut(viewport.camera)
+        else {
+            error!("PixelCamera {entity:?}'s viewport camera no longer exists.");
             continue;
         };
         let (mut new_size, aspect_ratio) = match &viewport_camera.target {
             RenderTarget::Window(window_ref) => {
                 let window = match window_ref {
-                    WindowRef::Primary => if let Ok(window) = primary_window.get_single() {
-                        window
-                    } else {
-                        continue;
-                    },
-                    &WindowRef::Entity(entity) => if let Ok(window) = windows.get(entity) {
-                        window
-                    } else {
-                        continue;
-                    },
+                    WindowRef::Primary => {
+                        if let Ok(window) = primary_window.get_single() {
+                            window
+                        } else {
+                            error!("The primary window that the PixelCamera is pointing to doesn't exist.");
+                            continue;
+                        }
+                    }
+                    &WindowRef::Entity(entity) => {
+                        if let Ok(window) = windows.get(entity) {
+                            window
+                        } else {
+                            error!("Window {entity:?} that the PixelCamera is pointing to doesn't exist.");
+                            continue;
+                        }
+                    }
                 };
+                if !window.is_changed() {
+                    continue;
+                }
+
                 let new_size = viewport_size.calculate(&window.resolution);
                 let aspect_ratio = window.width() / window.height();
 
