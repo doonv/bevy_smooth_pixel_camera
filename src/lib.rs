@@ -22,7 +22,7 @@ impl Plugin for PixelCameraPlugin {
                 update_viewport_size,
                 smooth_camera,
                 set_camera_position,
-                fix_11240
+                fix_11240,
             ),
         );
     }

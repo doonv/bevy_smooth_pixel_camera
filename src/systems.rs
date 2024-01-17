@@ -262,7 +262,7 @@ pub(crate) fn update_viewport_size(
 }
 
 /// Temporary fix for <https://github.com/bevyengine/bevy/issues/11240>.
-/// 
+///
 /// **TODO:** Remove this.
 pub(crate) fn fix_11240(
     pixel_cameras: Query<&Camera, (Without<ViewportCamera>, With<PixelCamera>)>,
