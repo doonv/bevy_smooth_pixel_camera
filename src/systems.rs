@@ -261,20 +261,6 @@ pub(crate) fn update_viewport_size(
     }
 }
 
-/// Temporary fix for <https://github.com/bevyengine/bevy/issues/11240>.
-///
-/// **TODO:** Remove this.
-pub(crate) fn fix_11240(
-    pixel_cameras: Query<&Camera, (Without<ViewportCamera>, With<PixelCamera>)>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    for camera in &pixel_cameras {
-        if let RenderTarget::Image(image_handle) = &camera.target {
-            images.get_mut(image_handle);
-        }
-    }
-}
-
 /// Set the camera transform the rounded down version of the subpixel position
 pub(crate) fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
     for (PixelCamera { subpixel_pos, .. }, mut transform) in &mut cameras {
