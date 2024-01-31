@@ -256,7 +256,11 @@ pub(crate) fn smooth_camera(
         // we can move the viewport's transform by the remainder of the subpixel.
         //
         // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
-        let remainder = *subpixel_pos % 1.0;
+        let remainder = Vec2 {
+            x: subpixel_pos.x % 1.0,
+            // The y axis on sprite.rect is inverted, so we need to invert our y to counteract this.
+            y: -subpixel_pos.y % 1.0,
+        };
 
         sprite.rect = Some(Rect {
             min: Vec2::ONE + remainder,
