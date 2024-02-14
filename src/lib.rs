@@ -16,7 +16,7 @@ impl Plugin for PixelCameraPlugin {
         use crate::systems::*;
 
         app.insert_resource(Msaa::Off).add_systems(
-            Update,
+            PostUpdate,
             (
                 init_camera,
                 update_viewport_size,
