@@ -47,7 +47,8 @@ This method allows for smooth camera movement while retaining the pixel perfecti
 
 ## Bevy Compatibility
 
-| bevy                                                              | bevy_smooth_pixel_camera                                                                |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [main](https://github.com/bevyengine/bevy)                        | [main](https://github.com/doonv/bevy_smooth_pixel_camera)                               |
-| 0.12.* / [latest](https://github.com/bevyengine/bevy/tree/latest) | 0.1.0 - 0.2.1 / [latest](https://github.com/doonv/bevy_smooth_pixel_camera/tree/latest) |
+| bevy                                                              | bevy_smooth_pixel_camera                                                        |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [main](https://github.com/bevyengine/bevy)                        | [main](https://github.com/doonv/bevy_smooth_pixel_camera)                       |
+| 0.13.* / [latest](https://github.com/bevyengine/bevy/tree/latest) | 0.3.0 / [latest](https://github.com/doonv/bevy_smooth_pixel_camera/tree/latest) |
+| 0.12.*                                                            | 0.1.0 - 0.2.1                                                                   |
