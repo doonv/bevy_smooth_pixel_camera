@@ -17,7 +17,10 @@ pub(crate) fn init_camera(
     mut images: ResMut<Assets<Image>>,
     mut commands: Commands,
 ) {
-    let window = window_query.single();
+    let Ok(window) = window_query.get_single() else {
+        warn!("No window found, can't run init_camera");
+        return;
+    };
 
     for (
         PixelCamera {
