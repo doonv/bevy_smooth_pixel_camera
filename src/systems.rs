@@ -82,11 +82,8 @@ pub(crate) fn init_camera(
 
         let viewport_sprite = commands
             .spawn((
-                SpriteBundle {
-                    texture: image_handle,
-                    transform: Transform::from_scale(Vec3::splat(1.0)),
-                    ..default()
-                },
+                Sprite::from_image(image_handle),
+                Transform::from_scale(Vec3::splat(1.0)),
                 viewport_layer.clone(),
                 PixelViewport,
             ))
@@ -94,23 +91,20 @@ pub(crate) fn init_camera(
 
         let viewport_camera = commands
             .spawn((
-                Camera2dBundle {
-                    camera: Camera {
-                        order: *viewport_order,
-                        clear_color: viewport_size.clear_color(),
-                        ..default()
-                    },
-                    projection: OrthographicProjection {
-                        far: 1000.,
-                        near: -1000.,
-                        scaling_mode: ScalingMode::Fixed {
-                            width: (size.width - 2) as f32,
-                            height: (size.height - 2) as f32,
-                        },
-                        ..default()
-                    },
-
+                Camera2d,
+                Camera {
+                    order: *viewport_order,
+                    clear_color: viewport_size.clear_color(),
                     ..default()
+                },
+                OrthographicProjection {
+                    far: 1000.,
+                    near: -1000.,
+                    scaling_mode: ScalingMode::Fixed {
+                        width: (size.width - 2) as f32,
+                        height: (size.height - 2) as f32,
+                    },
+                    ..OrthographicProjection::default_2d()
                 },
                 ViewportCamera,
                 viewport_layer.clone(),
