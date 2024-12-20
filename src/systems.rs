@@ -268,7 +268,7 @@ pub(crate) fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transfo
 pub(crate) fn smooth_camera(
     mut cameras: Query<(&PixelCamera, &PixelViewportReferences)>,
     mut viewports: Query<
-        (&mut Sprite, &Handle<Image>),
+        &mut Sprite,
         (With<PixelViewport>, Without<PixelViewportReferences>),
     >,
     images: Res<Assets<Image>>,
@@ -285,8 +285,8 @@ pub(crate) fn smooth_camera(
         if !smoothing {
             continue;
         }
-        let (mut sprite, handle) = viewports.get_mut(viewport.sprite).unwrap();
-        let Some(image) = images.get(handle) else {
+        let mut sprite = viewports.get_mut(viewport.sprite).unwrap();
+        let Some(image) = images.get(&sprite.image) else {
             error!(
                 "Pixel camera viewport ({:?}) image doesn't exist",
                 viewport.sprite
