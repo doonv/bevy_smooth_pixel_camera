@@ -26,6 +26,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // turn it into a smooth pixel perfect camera.
     commands.spawn((
         Camera2d,
+        Msaa::Off,
         PixelCamera::from_size(ViewportSize::PixelFixed(32)),
     ));
 

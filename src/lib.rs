@@ -25,7 +25,7 @@ impl Plugin for PixelCameraPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
 
-        app.insert_resource(Msaa::Off).add_systems(
+        app.add_systems(
             PostUpdate,
             (
                 init_camera.in_set(CameraSystems::Initialization),
