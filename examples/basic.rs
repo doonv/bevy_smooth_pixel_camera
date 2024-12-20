@@ -25,23 +25,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn a 2d camera with the PixelCamera bundle in order to
     // turn it into a smooth pixel perfect camera.
     commands.spawn((
-        Camera2dBundle::default(),
+        Camera2d,
         PixelCamera::from_size(ViewportSize::PixelFixed(32)),
     ));
 
     // Spawn a checkerboard background
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load("checkerboard.png"),
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..default()
-    });
+    commands.spawn((
+        Sprite::from_image(asset_server.load("checkerboard.png")),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
     // Spawn a bevy icon sprite and mark it with the `BevyIcon` component
     commands.spawn((
-        SpriteBundle {
-            texture: asset_server.load("bevy_pixel_dark.png"),
-            transform: Transform::from_xyz(0.0, 0.0, 1.0),
-            ..default()
-        },
+        Sprite::from_image(asset_server.load("bevy_pixel_dark.png")),
+        Transform::from_xyz(0.0, 0.0, 1.0),
         BevyIcon,
     ));
 }
@@ -54,10 +50,10 @@ fn update(
     // Get the camera and move it horizontally over time
     let mut camera = camera.single_mut();
 
-    camera.subpixel_pos.x = (time.elapsed_seconds() / 2.0).sin() * 10.0;
+    camera.subpixel_pos.x = (time.elapsed_secs() / 2.0).sin() * 10.0;
 
     // Get the bevy icon and move it vertically over time
     let mut bevy_transform = bevy.single_mut();
 
-    bevy_transform.translation.y = time.elapsed_seconds().sin() * 4.5;
+    bevy_transform.translation.y = time.elapsed_secs().sin() * 4.5;
 }
