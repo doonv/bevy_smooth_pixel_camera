@@ -87,7 +87,7 @@ pub(crate) fn init_camera(
                     transform: Transform::from_scale(Vec3::splat(1.0)),
                     ..default()
                 },
-                *viewport_layer,
+                viewport_layer.clone(),
                 PixelViewport,
             ))
             .id();
@@ -113,7 +113,7 @@ pub(crate) fn init_camera(
                     ..default()
                 },
                 ViewportCamera,
-                *viewport_layer,
+                viewport_layer.clone(),
             ))
             .id();
 
