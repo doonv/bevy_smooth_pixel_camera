@@ -1,7 +1,7 @@
 [package]
 name = "bevy_smooth_pixel_camera"
-version = "0.3.0"
-edition = "2021"
+version = "0.4.0"
+edition = "2024"
 authors = ["Doonv"]
 description = "Smooth pixel-perfect camera for Bevy"
 repository = "https://github.com/doonv/bevy_smooth_pixel_camera"
@@ -9,17 +9,27 @@ categories = ["game-development", "graphics", "rendering"]
 exclude = ["assets/", ".github/"]
 keywords = ["game", "graphics", "bevy", "pixel", "pixel-perfect"]
 license = "MIT OR Apache-2.0"
+rust-version = "1.89"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = [
+bevy = { version = "0.18.1", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_sprite",
+    "bevy_log",
 ] }
+smallvec = "1"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy" }
+bevy = { version = "0.18.1", default-features = false, features = [
+    "2d",
+    "debug",
+    "pan_camera",
+] }
 
 [lints]
 rust.missing_docs = "warn"
+clippy.unwrap_used = "warn"
+clippy.todo = "warn"
+clippy.type_complexity = "allow"

@@ -1,177 +1,188 @@
 //! Viewport Scaling and Stretching.
 
-use bevy::render::camera::ClearColorConfig;
+use bevy::camera::{ClearColorConfig, ScalingMode};
+use bevy::math::Vec2;
+use bevy::prelude::*;
 use bevy::render::render_resource::Extent3d;
-use bevy::window::WindowResolution;
 
 /// The way the viewport scales to fit the window.
 #[doc(alias = "stretching")]
 pub enum FitMode {
-    /// The viewport will be stretched to the size of the window.
+    /// Stretch viewport will to the size of the window.
     Stretch,
-    /// The viewport will be cropped into to fill the window.
-    #[doc(alias = "fill")]
-    Crop,
-    /// The viewport will scale as large as possible without cropping and keeping aspect ratio.
+    /// Scale the viewport to cover the entire window; edges may be cropped.
+    #[doc(alias = "Crop")]
+    Fill,
+    /// Scale the viewport as large as possible without cropping.
     ///
-    /// The unused space will be filled with the color.
+    /// Any empty space (letterboxing) is cleared using the [`ClearColorConfig`].
     Fit(ClearColorConfig),
 }
 
 /// Different methods of calculating the viewport's size
-pub enum ViewportSize {
+pub enum ViewportScalingMode {
     /// Each pixel's size is fixed.
     /// The viewport scales with the window.
     #[doc(alias = "WindowSize")]
-    PixelFixed(u32),
-    /// The viewport's size is fixed.
-    /// If the window and viewport sizes do not match, the viewport will stretch.
+    PixelSize(f32),
+    /// Fixed viewport size.
     Fixed {
         /// The width of the viewport in logical pixels.
-        width: u32,
+        width: f32,
         /// The height of the viewport in logical pixels.
-        height: u32,
+        height: f32,
         /// The way the viewport scales to fit the window.
         fit: FitMode,
     },
     /// Keep the viewport's width fixed. The height
     /// will be adjusted to maintain aspect ratio.
-    FixedWidth(u32),
+    FixedWidth(f32),
     /// Keep the viewport's height fixed. The width
     /// will be adjusted to maintain aspect ratio.
-    FixedHeight(u32),
+    FixedHeight(f32),
     /// Keeping the aspect ratio while the axes can't be smaller than given minimum.
     AutoMin {
         /// The minimum width of the viewport in logical pixels.
-        min_width: u32,
+        min_width: f32,
         /// The minimum height of the viewport in logical pixels.
-        min_height: u32,
+        min_height: f32,
     },
     /// Keeping the aspect ratio while the axes can't be bigger than given maximum.
     AutoMax {
         /// The maximum width of the viewport in logical pixels.
-        max_width: u32,
+        max_width: f32,
         /// The maximum height of the viewport in logical pixels.
-        max_height: u32,
+        max_height: f32,
     },
-    /// Use your own function for converting a window resolution to viewport size.
+    /// Define your own function for converting a window resolution to viewport size.
     Custom {
         /// The function used for converting a window resolution to viewport size.
-        func: fn(&WindowResolution) -> (u32, u32),
+        func: fn(Vec2) -> Vec2,
         /// The way the viewport scales to fit the window.
         fit: FitMode,
     },
 }
 
-impl Default for ViewportSize {
+impl Default for ViewportScalingMode {
     fn default() -> Self {
-        Self::PixelFixed(4)
+        Self::PixelSize(4.0)
     }
 }
 
-impl ViewportSize {
-    /// Calculates the size of the viewport based on the [`ViewportSize`] and the [`WindowResolution`].
-    pub fn calculate(&self, window_resolution: &WindowResolution) -> Extent3d {
-        let window_width = window_resolution.width();
-        let window_height = window_resolution.height();
-
+impl ViewportScalingMode {
+    /// Calculates the size of the viewport based on the [`ViewportScalingMode`] and the provided window size.
+    #[must_use]
+    pub fn calculate(&self, window_size: Vec2) -> Vec2 {
         match *self {
-            ViewportSize::PixelFixed(scaling) => Extent3d {
-                width: (window_width / scaling as f32).ceil() as u32,
-                height: (window_height / scaling as f32).ceil() as u32,
-                depth_or_array_layers: 1,
-            },
-            ViewportSize::Fixed { width, height, .. } => Extent3d {
+            Self::PixelSize(scaling) => Vec2::new(
+                (window_size.x / scaling).ceil(),
+                (window_size.y / scaling).ceil(),
+            ),
+            Self::Fixed {
                 width,
                 height,
-                depth_or_array_layers: 1,
-            },
-            ViewportSize::FixedWidth(width) => Extent3d {
-                width,
-                height: window_height as u32 * width / window_width as u32,
-                depth_or_array_layers: 1,
-            },
-            ViewportSize::FixedHeight(height) => Extent3d {
-                width: window_width as u32 * height / window_height as u32,
-                height,
-                depth_or_array_layers: 1,
-            },
-            ViewportSize::AutoMin {
+                fit: _,
+            } => Vec2::new(width, height),
+            Self::FixedWidth(width) => {
+                Vec2::new(width, (window_size.y * width / window_size.x).round())
+            }
+            Self::FixedHeight(height) => {
+                Vec2::new((window_size.x * height / window_size.y).round(), height)
+            }
+            Self::AutoMin {
                 min_width,
                 min_height,
             } => {
-                // Compare Pixels of current width and minimal height and Pixels of minimal width with current height.
-                // Then use bigger (min_height when true) as what it refers to (height when true) and calculate rest so it can't get under minimum.
-                let (width, height) =
-                    if window_width as u32 * min_height > min_width * window_height as u32 {
-                        (
-                            window_width as u32 * min_height / window_height as u32,
-                            min_height,
-                        )
-                    } else {
-                        (
-                            min_width,
-                            window_height as u32 * min_width / window_width as u32,
-                        )
-                    };
-
-                Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
+                if window_size.x * min_height > min_width * window_size.y {
+                    Vec2::new(window_size.x * min_height / window_size.y, min_height)
+                } else {
+                    Vec2::new(min_width, window_size.y * min_width / window_size.x)
                 }
             }
-            ViewportSize::AutoMax {
+            Self::AutoMax {
                 max_width,
                 max_height,
             } => {
-                // Compare Pixels of current width and minimal height and Pixels of minimal width with current height.
-                // Then use bigger (min_height when true) as what it refers to (height when true) and calculate rest so it can't get under minimum.
-                let (width, height) =
-                    if window_width as u32 * max_height < max_width * window_height as u32 {
-                        (
-                            window_width as u32 * max_height / window_height as u32,
-                            max_height,
-                        )
-                    } else {
-                        (
-                            max_width,
-                            window_height as u32 * max_width / window_width as u32,
-                        )
-                    };
-
-                Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
+                if window_size.x * max_height < max_width * window_size.y {
+                    Vec2::new(window_size.x * max_height / window_size.y, max_height)
+                } else {
+                    Vec2::new(max_width, window_size.y * max_width / window_size.x)
                 }
             }
-            ViewportSize::Custom { func, .. } => {
-                let (width, height) = func(window_resolution);
-
-                Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 1,
-                }
-            }
+            Self::Custom { func, fit: _ } => func(window_size),
         }
     }
-    /// Returns the clear color for this [`ViewportSize`] if the current variant
+
+    /// Returns the clear color for this [`ViewportScalingMode`] if the current variant
     /// has a [`FitMode::Fit`], otherwise returns [`ClearColorConfig::None`].
     pub fn clear_color(&self) -> ClearColorConfig {
-        if let ViewportSize::Fixed {
+        if let Self::Fixed {
             fit: FitMode::Fit(config),
             ..
         }
-        | ViewportSize::Custom {
+        | Self::Custom {
             fit: FitMode::Fit(config),
             ..
         } = self
         {
-            config.clone()
+            *config
         } else {
             ClearColorConfig::None
         }
+    }
+
+    /// Returns the internal texture size and the camera projection scaling for a given window size.
+    pub(crate) fn get_configuration(
+        &self,
+        window_size: Vec2,
+        smoothing: bool,
+    ) -> (Extent3d, ScalingMode) {
+        let base = self.calculate(window_size);
+        let aspect = window_size.x / window_size.y;
+
+        let (view_w, view_h) = match self {
+            Self::Fixed { fit, .. } | Self::Custom { fit, .. } => match fit {
+                FitMode::Fit(_) => {
+                    if aspect > base.x / base.y {
+                        (base.y * aspect, base.y)
+                    } else {
+                        (base.x, base.x / aspect)
+                    }
+                }
+                FitMode::Fill => {
+                    let axis = base.x.min(base.y);
+                    if aspect > 1.0 {
+                        (axis * aspect, axis)
+                    } else {
+                        (axis, axis / aspect)
+                    }
+                }
+                FitMode::Stretch => (base.x, base.y),
+            },
+            _ => (base.x, base.y),
+        };
+
+        // Even though the LOGICAL base is float-based, the physical TEXTURE
+        // must be integer-sized. We ceil() here to ensure we don't cut off
+        // a partial pixel at the edges.
+        let mut tex_w = base.x.ceil() as u32;
+        let mut tex_h = base.y.ceil() as u32;
+
+        if smoothing {
+            tex_w += 2;
+            tex_h += 2;
+        }
+
+        (
+            Extent3d {
+                width: tex_w,
+                height: tex_h,
+                ..default()
+            },
+            ScalingMode::Fixed {
+                width: view_w,
+                height: view_h,
+            },
+        )
     }
 }

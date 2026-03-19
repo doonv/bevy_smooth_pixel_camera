@@ -1,9 +1,9 @@
-//! A simple example of this crate having smooth camera movement while maintaining pixel perfection.
+//! Demonstrates simple usage of `bevy_smooth_pixel_camera` and how smoothing affects the camera.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 use bevy_smooth_pixel_camera::prelude::*;
 
-/// Marker component for the bevy icon so we can move it in `update`
+/// Marker component for the bevy icon so we can move it in [`update`]
 #[derive(Component)]
 struct BevyIcon;
 
@@ -12,7 +12,13 @@ fn main() {
         .add_plugins((
             // Set the ImagePlugin to have nearest neighbor sampling
             // This prevents our sprites from becoming blurry
-            DefaultPlugins.set(ImagePlugin::default_nearest()),
+            DefaultPlugins.set(ImagePlugin::default_nearest()).set(WindowPlugin {
+                primary_window: Some(Window {
+                    resolution: WindowResolution::new(480, 270),
+                    ..default()
+                }),
+                ..default()
+            }),
             // Add the smooth pixel camera plugin
             PixelCameraPlugin,
         ))
@@ -22,42 +28,29 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Spawn a 2d camera with the PixelCamera bundle in order to
-    // turn it into a smooth pixel perfect camera.
-    commands.spawn((
-        Camera2dBundle::default(),
-        PixelCamera::from_size(ViewportSize::PixelFixed(32)),
-    ));
-
-    // Spawn a checkerboard background
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load("checkerboard.png"),
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..default()
+    commands.spawn(PixelCamera {
+        smoothing: false,
+        ..PixelCamera::from_size(ViewportScalingMode::PixelSize(8.0))
     });
-    // Spawn a bevy icon sprite and mark it with the `BevyIcon` component
+
+    commands.spawn(Sprite::from_image(asset_server.load("checkerboard.png")));
+
     commands.spawn((
-        SpriteBundle {
-            texture: asset_server.load("bevy_pixel_dark.png"),
-            transform: Transform::from_xyz(0.0, 0.0, 1.0),
-            ..default()
-        },
+        Sprite::from_image(asset_server.load("bevy_pixel_dark.png")),
+        Transform::from_xyz(0.0, 0.0, 1.0),
         BevyIcon,
     ));
 }
 
+/// Moves the camera and icon over time to show how movement in the world is pixelated but movement of the camera is not.
 fn update(
-    mut camera: Query<&mut PixelCamera>,
-    mut bevy: Query<&mut Transform, With<BevyIcon>>,
+    // Make sure to use PixelCamera and not Camera, as Camera might return the viewport camera.
+    // If you want to exclude the viewport camera from a query, you can use Without<ViewportCamera>
+    mut camera: Single<&mut Transform, (With<PixelCamera>, Without<BevyIcon>)>,
+    mut icon: Single<&mut Transform, (With<BevyIcon>, Without<PixelCamera>)>,
     time: Res<Time>,
 ) {
-    // Get the camera and move it horizontally over time
-    let mut camera = camera.single_mut();
+    camera.translation.x = (time.elapsed_secs() / 2.0).sin() * 10.0;
 
-    camera.subpixel_pos.x = (time.elapsed_seconds() / 2.0).sin() * 10.0;
-
-    // Get the bevy icon and move it vertically over time
-    let mut bevy_transform = bevy.single_mut();
-
-    bevy_transform.translation.y = time.elapsed_seconds().sin() * 4.5;
+    icon.translation.y = time.elapsed_secs().sin() * 4.5;
 }
