@@ -26,7 +26,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
         if: runner.os == 'linux'
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
       - name: Run cargo check
         run: cargo check
 
@@ -54,7 +54,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
         if: runner.os == 'linux'
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
       - name: Run tests
         run: cargo test
 
@@ -78,7 +78,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
         if: runner.os == 'linux'
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
       - name: Run cargo clippy
