@@ -6,8 +6,7 @@
 
 <!-- WHEN UPDATING README WITH cargo rdme:
 Use --heading-base-level 0.
-Comment out the intralink definitions at the bottom for `default_nearest` and `smoothing`.
-And change `smoothing_on` and `smoothing_off` to be local links.
+Comment out the intralink definitions at the bottom for `default_nearest` and smoothing.
  -->
 <!-- cargo-rdme start -->
 
@@ -18,7 +17,7 @@ This allows for hybrid rendering of both a pixelated world and high resolution a
 
 This plugin has a [smoothing] feature, which makes the camera's movement appear smooth while keeping the world itself locked
 to a pixel grid. It works by moving the canvas in the opposite direction of the world camera's subpixel position. See the
-`how_smoothing_works` example for a demonstration of how it works behind the scenes.
+[`how_smoothing_works`] example for a demonstration of how it works behind the scenes.
 
 | Smoothing OFF                                                                   | Smoothing ON                                                                                    |
 | :-----------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------: |
@@ -61,14 +60,17 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 
 | bevy   | bevy_smooth_pixel_camera |
 | ------ | ------------------------ |
-| 0.18.* | 0.4.0 - `main`           |
+| 0.18.* | 0.4.0 - [`main`]         |
 | 0.13.* | 0.3.0                    |
 | 0.12.* | 0.1.0 - 0.2.1            |
 
-<!-- [`default_nearest`]: ImagePlugin::default_nearest -->
-[smoothing_off]: ./assets/smoothing_off.avif
-[smoothing_on]: ./assets/smoothing_on.avif
-<!-- [smoothing]: components::PixelCamera::smoothing -->
+[smoothing_off]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_off.avif
+[smoothing_on]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_on.avif
+[`how_smoothing_works`]: https://github.com/doonv/bevy_smooth_pixel_camera/blob/main/examples/how_smoothing_works.rs
+[`main`]: https://github.com/doonv/bevy_smooth_pixel_camera
+
+<!-- [`default_nearest`]: ImagePlugin::default_nearest
+[smoothing]: components::PixelCamera::smoothing -->
 
 <!-- cargo-rdme end -->
 

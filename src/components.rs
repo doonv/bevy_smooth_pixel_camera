@@ -13,7 +13,7 @@ use std::mem;
 
 use crate::viewport::ViewportScalingMode;
 
-/// A pixelated camera component. Adding this component makes this camera render
+/// The pixelated camera component. Adding this component makes this camera render
 /// to a small viewport before rendering to the window (or whatever its [`RenderTarget`] was set to).
 ///
 /// ## Implementation details

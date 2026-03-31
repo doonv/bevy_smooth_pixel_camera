@@ -5,11 +5,11 @@
 //!
 //! This plugin has a [smoothing] feature, which makes the camera's movement appear smooth while keeping the world itself locked
 //! to a pixel grid. It works by moving the canvas in the opposite direction of the world camera's subpixel position. See the
-//! `how_smoothing_works` example for a demonstration of how it works behind the scenes.
+//! [`how_smoothing_works`] example for a demonstration of how it works behind the scenes.
 //!
 //! | Smoothing OFF                                                                   | Smoothing ON                                                                                    |
 //! | :-----------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------: |
-//! | ![The camera is locked to the pixel grid, causing jagged motion][smoothing_off] | ![The camera moves smoothly while the world itself stays locked to a pixel grid.](smoothing_on) |
+//! | ![The camera is locked to the pixel grid, causing jagged motion][smoothing_off] | ![The camera moves smoothly while the world itself stays locked to a pixel grid.][smoothing_on] |
 //!
 //! ## Usage
 //!
@@ -48,13 +48,16 @@
 //!
 //! | bevy   | bevy_smooth_pixel_camera |
 //! | ------ | ------------------------ |
-//! | 0.18.* | 0.4.0 - `main`           |
+//! | 0.18.* | 0.4.0 - [`main`]         |
 //! | 0.13.* | 0.3.0                    |
 //! | 0.12.* | 0.1.0 - 0.2.1            |
 //!
-//! [`default_nearest`]: ImagePlugin::default_nearest
 //! [smoothing_off]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_off.avif
 //! [smoothing_on]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_on.avif
+//! [`how_smoothing_works`]: https://github.com/doonv/bevy_smooth_pixel_camera/blob/main/examples/how_smoothing_works.rs
+//! [`main`]: https://github.com/doonv/bevy_smooth_pixel_camera
+//!
+//! [`default_nearest`]: ImagePlugin::default_nearest
 //! [smoothing]: components::PixelCamera::smoothing
 
 use bevy::prelude::*;
@@ -67,7 +70,9 @@ pub mod viewport;
 /// A [`SystemSet`] for [`PixelCameraPlugin`]'s systems.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum CameraSystems {
-    /// The system that update the pixel camera's position after every frame.
+    /// The system that updates the [`PixelCamera`](components::PixelCamera)'s position after every frame.
+    UpdatePosition,
+    /// Other systems that update the properties of the camera.
     Update,
 }
 
@@ -86,13 +91,16 @@ impl Plugin for PixelCameraPlugin {
         app.add_systems(
             PostUpdate,
             (
-                snap_camera_position,
-                update_viewport_size,
-                sync_camera_fields,
-                update_high_resolution_viewport_size,
-            )
-                .in_set(CameraSystems::Update)
-                .after(TransformSystems::Propagate),
+                snap_camera_position
+                    .in_set(CameraSystems::UpdatePosition)
+                    .after(TransformSystems::Propagate),
+                (
+                    update_viewport_size,
+                    sync_camera_fields,
+                    update_high_resolution_viewport_size,
+                )
+                    .in_set(CameraSystems::Update),
+            ),
         );
     }
 }
