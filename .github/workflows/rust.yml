@@ -27,7 +27,6 @@ jobs:
       - name: Install Dependencies
         if: runner.os == 'linux'
         run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-        if: runner.os == 'linux'
       - name: Run cargo check
         run: cargo check
 
