@@ -1,5 +1,5 @@
-#![doc(hidden)]
+//! `use bevy_smooth_pixel_camera::prelude::*;` to import [`PixelCamera`] and [`PixelCameraPlugin`], among other things.
 
-pub use super::PixelCameraPlugin;
-pub use super::components::PixelCamera;
-pub use super::viewport::ViewportScalingMode;
+pub use crate::PixelCameraPlugin;
+pub use crate::components::{HighResolution, PixelCamera};
+pub use crate::viewport::ViewportScalingMode;

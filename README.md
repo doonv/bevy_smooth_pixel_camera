@@ -1,19 +1,28 @@
 # bevy_smooth_pixel_camera
 
-[![crates.io](https://img.shields.io/crates/v/bevy_smooth_pixel_camera)](https://crates.io/crates/bevy_smooth_pixel_camera)
-[![docs.rs](https://docs.rs/bevy_smooth_pixel_camera/badge.svg)](https://docs.rs/bevy_smooth_pixel_camera)
+[![crates.io](https://img.shields.io/crates/v/bevy_smooth_pixel_camera?style=flat-square)](https://crates.io/crates/bevy_smooth_pixel_camera)
+[![docs.rs](https://img.shields.io/docsrs/bevy_smooth_pixel_camera?style=flat-square)](https://docs.rs/bevy_smooth_pixel_camera)
+![GitHub branch check runs](https://img.shields.io/github/check-runs/doonv/bevy_smooth_pixel_camera/main)
 
-<!-- The intralinks need to be manually fixed every time you update the readme with cargo rdme because it doesn't support intralinks very well, if at all. -->
+<!-- WHEN UPDATING README WITH cargo rdme:
+Use --heading-base-level 0.
+Comment out the intralink definitions at the bottom for `default_nearest` and `smoothing`.
+And change `smoothing_on` and `smoothing_off` to be local links.
+ -->
+<!-- cargo-rdme start -->
 
 A bevy plugin that adds a simple smooth pixel camera.
 
-| Smoothing OFF                     | Smoothing ON                      |
-| :-------------------------------: | :-------------------------------: |
-| ![](https://placehold.co/384x216) | ![](https://placehold.co/384x216) |
+It works by rendering the main camera to a small viewport which is then rendered by a second camera spawned by the plugin.
+This allows for hybrid rendering of both a pixelated world and high resolution assets on top.
 
-<!-- cargo-rdme start -->
+This plugin has a [smoothing] feature, which makes the camera's movement appear smooth while keeping the world itself locked
+to a pixel grid. It works by moving the canvas in the opposite direction of the world camera's subpixel position. See the
+`how_smoothing_works` example for a demonstration of how it works behind the scenes.
 
-This method allows for smooth camera movement while retaining the pixel perfection of low resolution rendering.
+| Smoothing OFF                                                                   | Smoothing ON                                                                                    |
+| :-----------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------: |
+| ![The camera is locked to the pixel grid, causing jagged motion][smoothing_off] | ![The camera moves smoothly while the world itself stays locked to a pixel grid.][smoothing_on] |
 
 ## Usage
 
@@ -23,7 +32,7 @@ This method allows for smooth camera movement while retaining the pixel perfecti
     cargo add bevy_smooth_pixel_camera
     ```
 
-2. Add the [`PixelCameraPlugin`](https://docs.rs/bevy_smooth_pixel_camera/latest/bevy_smooth_pixel_camera/struct.PixelCameraPlugin.html) and set the [`ImagePlugin`](https://docs.rs/bevy_image/latest/bevy_image/image/struct.ImagePlugin.html) to [`default_nearest`](https://docs.rs/bevy_image/latest/bevy_image/struct.ImagePlugin.html#method.default_nearest).
+2. Add the [`PixelCameraPlugin`] and set [`ImagePlugin`] to [`default_nearest`].
 
     ```rust
     use bevy::prelude::*;
@@ -52,8 +61,18 @@ This method allows for smooth camera movement while retaining the pixel perfecti
 
 | bevy   | bevy_smooth_pixel_camera |
 | ------ | ------------------------ |
-| 0.18.* | 0.4.0 - main             |
+| 0.18.* | 0.4.0 - `main`           |
 | 0.13.* | 0.3.0                    |
 | 0.12.* | 0.1.0 - 0.2.1            |
 
+<!-- [`default_nearest`]: ImagePlugin::default_nearest -->
+[smoothing_off]: ./assets/smoothing_off.avif
+[smoothing_on]: ./assets/smoothing_on.avif
+<!-- [smoothing]: components::PixelCamera::smoothing -->
+
 <!-- cargo-rdme end -->
+
+[`PixelCameraPlugin`]: https://docs.rs/bevy_smooth_pixel_camera/latest/bevy_smooth_pixel_camera/struct.PixelCameraPlugin.html
+[`ImagePlugin`]: https://docs.rs/bevy_image/latest/bevy_image/image/struct.ImagePlugin.html
+[`default_nearest`]: https://docs.rs/bevy_image/latest/bevy_image/struct.ImagePlugin.html#method.default_nearest
+[smoothing]: https://docs.rs/bevy_smooth_pixel_camera/latest/bevy_smooth_pixel_camera/components/struct.PixelCamera.html#structfield.smoothing

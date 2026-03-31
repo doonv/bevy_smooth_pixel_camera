@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::Extent3d;
 
 /// The way the viewport scales to fit the window.
-#[doc(alias = "stretching")]
+#[doc(alias = "Stretching")]
 pub enum FitMode {
     /// Stretch viewport will to the size of the window.
     Stretch,
@@ -74,21 +74,14 @@ impl ViewportScalingMode {
     #[must_use]
     pub fn calculate(&self, window_size: Vec2) -> Vec2 {
         match *self {
-            Self::PixelSize(scaling) => Vec2::new(
-                (window_size.x / scaling).ceil(),
-                (window_size.y / scaling).ceil(),
-            ),
+            Self::PixelSize(scaling) => Vec2::new(window_size.x / scaling, window_size.y / scaling),
             Self::Fixed {
                 width,
                 height,
                 fit: _,
             } => Vec2::new(width, height),
-            Self::FixedWidth(width) => {
-                Vec2::new(width, (window_size.y * width / window_size.x).round())
-            }
-            Self::FixedHeight(height) => {
-                Vec2::new((window_size.x * height / window_size.y).round(), height)
-            }
+            Self::FixedWidth(width) => Vec2::new(width, window_size.y * width / window_size.x),
+            Self::FixedHeight(height) => Vec2::new(window_size.x * height / window_size.y, height),
             Self::AutoMin {
                 min_width,
                 min_height,
@@ -114,8 +107,9 @@ impl ViewportScalingMode {
     }
 
     /// Returns the clear color for this [`ViewportScalingMode`] if the current variant
-    /// has a [`FitMode::Fit`], otherwise returns [`ClearColorConfig::None`].
-    pub fn clear_color(&self) -> ClearColorConfig {
+    /// has a [`FitMode::Fit`].
+    #[must_use]
+    pub const fn clear_color(&self) -> Option<ClearColorConfig> {
         if let Self::Fixed {
             fit: FitMode::Fit(config),
             ..
@@ -125,13 +119,14 @@ impl ViewportScalingMode {
             ..
         } = self
         {
-            *config
+            Some(*config)
         } else {
-            ClearColorConfig::None
+            None
         }
     }
 
     /// Returns the internal texture size and the camera projection scaling for a given window size.
+    #[must_use]
     pub(crate) fn get_configuration(
         &self,
         window_size: Vec2,
@@ -162,15 +157,12 @@ impl ViewportScalingMode {
             _ => (base.x, base.y),
         };
 
-        // Even though the LOGICAL base is float-based, the physical TEXTURE
-        // must be integer-sized. We ceil() here to ensure we don't cut off
-        // a partial pixel at the edges.
         let mut tex_w = base.x.ceil() as u32;
         let mut tex_h = base.y.ceil() as u32;
 
         if smoothing {
-            tex_w += 2;
-            tex_h += 2;
+            tex_w += 1;
+            tex_h += 1;
         }
 
         (

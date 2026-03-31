@@ -7,6 +7,7 @@ description = "Smooth pixel-perfect camera for Bevy"
 repository = "https://github.com/doonv/bevy_smooth_pixel_camera"
 categories = ["game-development", "graphics", "rendering"]
 exclude = ["assets/", ".github/"]
+include = ["assets/smoothing*.avif"]
 keywords = ["game", "graphics", "bevy", "pixel", "pixel-perfect"]
 license = "MIT OR Apache-2.0"
 rust-version = "1.89"
@@ -28,8 +29,21 @@ bevy = { version = "0.18.1", default-features = false, features = [
     "pan_camera",
 ] }
 
-[lints]
-rust.missing_docs = "warn"
-clippy.unwrap_used = "warn"
-clippy.todo = "warn"
-clippy.type_complexity = "allow"
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "docsrs_dep"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs_dep",
+    "--html-after-content",
+    "docs-rs/trait-tags.html",
+]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docsrs_dep)'] }
+missing_docs = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+todo = "warn"
+type_complexity = "allow"
+must_use_candidate = "warn"

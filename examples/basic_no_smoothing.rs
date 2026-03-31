@@ -39,6 +39,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 /// Moves the camera and icon over time to show how movement in the world is pixelated but movement of the camera is not.
 fn update(
+    // Make sure to use PixelCamera and not Camera, as Camera can return the viewport camera.
+    // If you want to exclude the viewport camera from a query, you can use Without<ViewportCamera>
     mut camera: Single<&mut Transform, (With<PixelCamera>, Without<BevyIcon>)>,
     mut icon: Single<&mut Transform, (With<BevyIcon>, Without<PixelCamera>)>,
     time: Res<Time>,

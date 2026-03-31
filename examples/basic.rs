@@ -1,6 +1,6 @@
 //! Demonstrates simple usage of `bevy_smooth_pixel_camera` and how smoothing affects the camera.
 
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::prelude::*;
 use bevy_smooth_pixel_camera::prelude::*;
 
 /// Marker component for the bevy icon so we can move it in [`update`]
@@ -12,13 +12,7 @@ fn main() {
         .add_plugins((
             // Set the ImagePlugin to have nearest neighbor sampling
             // This prevents our sprites from becoming blurry
-            DefaultPlugins.set(ImagePlugin::default_nearest()).set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: WindowResolution::new(480, 270),
-                    ..default()
-                }),
-                ..default()
-            }),
+            DefaultPlugins.set(ImagePlugin::default_nearest()),
             // Add the smooth pixel camera plugin
             PixelCameraPlugin,
         ))
@@ -28,10 +22,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(PixelCamera {
-        smoothing: false,
-        ..PixelCamera::from_size(ViewportScalingMode::PixelSize(8.0))
-    });
+    commands.spawn(PixelCamera::from_size(ViewportScalingMode::PixelSize(32.0)));
 
     commands.spawn(Sprite::from_image(asset_server.load("checkerboard.png")));
 
@@ -44,7 +35,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 /// Moves the camera and icon over time to show how movement in the world is pixelated but movement of the camera is not.
 fn update(
-    // Make sure to use PixelCamera and not Camera, as Camera might return the viewport camera.
+    // Make sure to use PixelCamera and not Camera, as Camera can return the viewport camera.
     // If you want to exclude the viewport camera from a query, you can use Without<ViewportCamera>
     mut camera: Single<&mut Transform, (With<PixelCamera>, Without<BevyIcon>)>,
     mut icon: Single<&mut Transform, (With<BevyIcon>, Without<PixelCamera>)>,
