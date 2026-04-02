@@ -1,4 +1,4 @@
-//! Demonstrates simple usage of `bevy_smooth_pixel_camera` and how smoothing affects the camera.
+//! Demonstrates simple usage of [`bevy_smooth_pixel_camera`] and how smoothing affects the camera.
 
 use bevy::prelude::*;
 use bevy_smooth_pixel_camera::prelude::*;

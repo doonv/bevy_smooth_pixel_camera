@@ -1,14 +1,12 @@
 //! The components of [`bevy_smooth_pixel_camera`](crate).
 
-use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
 use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
-use bevy::render::render_resource::{TextureDimension, TextureFormat, TextureUsages};
+use bevy::render::render_resource::TextureFormat;
 use bevy::window::PrimaryWindow;
-use smallvec::SmallVec;
 use std::mem;
 
 use crate::viewport::ViewportScalingMode;
@@ -70,56 +68,43 @@ impl PixelCamera {
             if camera.order >= pixel_camera.viewport_order {
                 return Err("The camera is configured to render later or at the same time as of the viewport camera. (camera.order >= viewport_camera.order)".into());
             }
-
-            let primary = world
-                .try_query_filtered::<Entity, With<PrimaryWindow>>()
-                .expect("all components should be registered into the world")
-                .single(&world);
-
-            let mut windows = world
-                .try_query_filtered::<&Window, ()>()
-                .expect("all components should be registered into the world");
             let window_size = match render_target {
                 RenderTarget::Window(window_ref) => {
-                    match window_ref
+                    let primary = world
+                        .try_query_filtered::<Entity, With<PrimaryWindow>>()
+                        .expect("all components should be registered into the world")
+                        .single(&world);
+
+                    let mut windows = world
+                        .try_query_filtered::<&Window, ()>()
+                        .expect("all components should be registered into the world");
+                    let window = window_ref
                         .normalize(primary.ok())
                         .and_then(|w| windows.get(&world, w.entity()).ok())
-                    {
-                        Some(window) => Vec2::new(window.width(), window.height()),
-                        None => {
-                            return Err("".into());
-                            // return error!(
-                            //     "{}'s RenderTarget::Window points to a window that doesn't exist.",
-                            //     context.entity
-                            // );
-                        }
-                    }
+                        .ok_or("RenderTarget::Window points to a window that doesn't exist.")?;
+
+                    Vec2::new(window.width(), window.height())
                 }
                 RenderTarget::None { size } => size.as_vec2(),
-                target => {
-                    return Err(format!("Render target {target:?} is not supported.").into());
-                }
+                target => Err(format!("Render target {target:?} is not supported."))?,
             };
             let (size, scaling_mode) = pixel_camera
                 .viewport_size
                 .get_configuration(window_size, pixel_camera.smoothing);
 
             // This is the texture that will be rendered to.
-            let mut image = Image::new_fill(
-                size,
-                TextureDimension::D2,
-                &[0; 4],
-                TextureFormat::Bgra8UnormSrgb,
-                RenderAssetUsages::default(),
+            let viewport_image = Image::new_target_texture(
+                size.width,
+                size.height,
+                TextureFormat::Rgba8UnormSrgb,
+                None,
             );
-            image.texture_descriptor.usage |= TextureUsages::RENDER_ATTACHMENT;
-
             let render_target = render_target.clone();
 
-            let image_handle = world
+            let viewport_image_handle = world
                 .get_resource_mut::<Assets<Image>>()
-                .expect("resource Assets<Image> should exist")
-                .add(image);
+                .ok_or("resource Assets<Image> should exist, did you forget to add AssetPlugin?")?
+                .add(viewport_image);
             let pixel_camera = world
                 .get::<PixelCamera>(context.entity)
                 .expect("PixelCamera must exist in it's own on_add hook");
@@ -135,57 +120,92 @@ impl PixelCamera {
                     ..OrthographicProjection::default_2d()
                 }),
                 Camera2d,
-                ViewportCamera,
                 render_target,
                 pixel_camera.viewport_layers.clone(),
+                ViewportCamera,
             );
-            let viewport_image = (
-                Sprite::from_image(image_handle.clone()),
+            let viewport_sprite = (
+                Sprite::from_image(viewport_image_handle.clone()),
                 pixel_camera.viewport_layers.clone(),
                 ViewportImage,
             );
-
+            let mut viewport_camera_id = Entity::PLACEHOLDER;
+            let mut viewport_sprite_id = Entity::PLACEHOLDER;
             world
                 .commands()
                 .entity(context.entity)
-                .insert(RenderTarget::from(image_handle))
-                .with_child(viewport_camera)
-                .with_child(viewport_image);
+                .insert(RenderTarget::from(viewport_image_handle))
+                .with_children(|cmd| {
+                    viewport_camera_id = cmd.spawn(viewport_camera).id();
+                    viewport_sprite_id = cmd.spawn(viewport_sprite).id();
+                })
+                .insert(ViewportEntities {
+                    camera: viewport_camera_id,
+                    sprite: viewport_sprite_id,
+                });
 
             Ok(())
         }
 
         match inner(world, context) {
             Ok(()) => (),
-            Err(err) => error!("While initializing PixelCamera {}: {err}", context.entity),
+            Err(err) => {
+                if cfg!(test) {
+                    panic!("PixelCamera::on_add: {:?}", err);
+                } else {
+                    error!("While deinitializing PixelCamera {}: {err}", context.entity)
+                }
+            }
         }
     }
 
     fn on_remove(world: DeferredWorld, context: HookContext) {
-        fn inner(mut world: DeferredWorld, context: HookContext) -> Result<()> {
-            let viewport_entities: SmallVec<[Entity; 2]> = world
-                .get::<Children>(context.entity)
-                .iter()
-                .copied()
-                .flatten()
-                .copied()
-                .filter(|&e| {
-                    world.get::<ViewportCamera>(e).is_some()
-                        || world.get::<ViewportImage>(e).is_some()
-                })
-                .collect::<SmallVec<[_; 2]>>();
+        fn inner(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) -> Result<()> {
+            let &ViewportEntities {
+                camera,
+                sprite: image,
+            } = world
+                .get(entity)
+                .ok_or("PixelCameraViewportEntities should exist")?;
 
-            swap(&mut world, &context);
-            for entity in viewport_entities {
-                world.commands().entity(entity).despawn();
-            }
+            // Swap RenderTarget
+            let world_camera_entity = entity;
+            world
+                .commands()
+                .queue(move |world: &mut World| -> Result<()> {
+                    let viewport_entities = world
+                        .get::<ViewportEntities>(entity)
+                        .ok_or("PixelCameraViewportEntities should exist")?;
+                    let [mut world_camera, mut viewport_camera] =
+                        world.get_entity_mut([world_camera_entity, viewport_entities.camera])?;
+                    let world_target = world_camera
+                        .get_mut::<RenderTarget>()
+                        .ok_or("no RenderTarget")?;
+                    let viewport_target = viewport_camera
+                        .get_mut::<RenderTarget>()
+                        .ok_or("no RenderTarget")?;
+                    mem::swap(world_target.into_inner(), viewport_target.into_inner());
+
+                    Ok(())
+                });
+
+            world.commands().entity(camera).despawn();
+            world.commands().entity(image).despawn();
+
+            world.commands().entity(entity).remove::<ViewportEntities>();
 
             Ok(())
         }
 
         match inner(world, context) {
             Ok(()) => (),
-            Err(err) => error!("While deinitializing PixelCamera {}: {err}", context.entity),
+            Err(err) => {
+                if cfg!(test) {
+                    panic!("PixelCamera::on_remove: {:?}", err);
+                } else {
+                    error!("While deinitializing PixelCamera {}: {err}", context.entity)
+                }
+            }
         }
     }
 }
@@ -216,39 +236,45 @@ pub struct ViewportImage;
 /// check how the game looks when not locked to the grid.
 #[derive(Component, Debug)]
 #[require(PixelCamera)]
-#[component(on_add = swap_hook, on_remove = swap_hook)]
+#[component(on_add = Self::swap, on_remove = Self::swap)]
 pub struct HighResolution;
-fn swap_hook(mut world: DeferredWorld, context: HookContext) {
-    swap(&mut world, &context);
+impl HighResolution {
+    fn swap(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        world
+            .commands()
+            .queue(move |world: &mut World| -> Result<()> {
+                let &ViewportEntities { camera, .. } = world
+                    .get(entity)
+                    .ok_or("PixelCameraViewportEntities should exist")?;
+                let [mut world_camera, mut viewport_camera] =
+                    world.get_entity_mut([entity, camera])?;
+                let world_target = world_camera
+                    .get_mut::<RenderTarget>()
+                    .ok_or("no RenderTarget")?;
+                let viewport_target = viewport_camera
+                    .get_mut::<RenderTarget>()
+                    .ok_or("no RenderTarget")?;
+                mem::swap(world_target.into_inner(), viewport_target.into_inner());
+
+                let world_proj = world_camera
+                    .get_mut::<Projection>()
+                    .ok_or("no Projection")?;
+                let viewport_proj = viewport_camera
+                    .get_mut::<Projection>()
+                    .ok_or("no Projection")?;
+                mem::swap(world_proj.into_inner(), viewport_proj.into_inner());
+
+                Ok(())
+            });
+    }
 }
-fn swap(world: &mut DeferredWorld, context: &HookContext) {
-    let world_camera_entity = context.entity;
-    world
-        .commands()
-        .queue(move |world: &mut World| -> Result<()> {
-            let children = world
-                .get::<Children>(world_camera_entity)
-                .ok_or("no children")?;
-            let [mut world_camera, mut viewport_camera] =
-                world.get_entity_mut([world_camera_entity, children[0]])?;
-            let world_target = world_camera
-                .get_mut::<RenderTarget>()
-                .ok_or("no RenderTarget")?;
-            let viewport_target = viewport_camera
-                .get_mut::<RenderTarget>()
-                .ok_or("no RenderTarget")?;
-            mem::swap(world_target.into_inner(), viewport_target.into_inner());
 
-            let world_proj = world_camera
-                .get_mut::<Projection>()
-                .ok_or("no Projection")?;
-            let viewport_proj = viewport_camera
-                .get_mut::<Projection>()
-                .ok_or("no Projection")?;
-            mem::swap(world_proj.into_inner(), viewport_proj.into_inner());
-
-            Ok(())
-        });
+// Maybe replace with https://github.com/bevyengine/bevy/issues/21086 when added?
+// But even then, Translation propagation is important.
+#[derive(Component)]
+pub(crate) struct ViewportEntities {
+    pub(crate) camera: Entity,
+    pub(crate) sprite: Entity,
 }
 
 fn validate_layers(camera: EntityRef, pixel_camera: &PixelCamera) -> Result<(), &'static str> {
@@ -270,4 +296,143 @@ fn validate_layers(camera: EntityRef, pixel_camera: &PixelCamera) -> Result<(), 
     }
 
     Ok(())
+}
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use std::assert_matches;
+
+    #[test]
+    fn test_pixel_camera_hooks_components() {
+        let mut app = test_app();
+        let world = app.world_mut();
+
+        let target = RenderTarget::None {
+            size: UVec2 { x: 84, y: 905 },
+        };
+        let projection = Projection::Orthographic(OrthographicProjection {
+            far: -421.6,
+            ..OrthographicProjection::default_3d()
+        });
+        let mut camera = world.spawn((target, projection, PixelCamera::default()));
+
+        assert_eq!(camera.get::<Children>().unwrap().len(), 2);
+        assert!(camera.get::<ViewportEntities>().is_some());
+        assert!(!matches!(
+            camera.get::<RenderTarget>(),
+            Some(RenderTarget::None {
+                size: UVec2 { x: 84, y: 905 }
+            })
+        ));
+        assert_matches!(
+            camera.get::<Projection>(),
+            Some(Projection::Orthographic(OrthographicProjection {
+                far: -421.6,
+                ..
+            }))
+        );
+        camera.remove::<PixelCamera>();
+
+        assert_matches!(
+            camera.get::<RenderTarget>(),
+            Some(RenderTarget::None {
+                size: UVec2 { x: 84, y: 905 }
+            })
+        );
+        assert_matches!(
+            camera.get::<Projection>(),
+            Some(Projection::Orthographic(OrthographicProjection {
+                far: -421.6,
+                ..
+            }))
+        );
+        assert!(camera.get::<PixelCamera>().is_none());
+        assert!(camera.get::<ViewportEntities>().is_none());
+        assert!(camera.get::<Children>().is_none());
+    }
+
+    #[test]
+    fn test_pixel_camera_hooks_children() {
+        let mut app = test_app();
+        let world = app.world_mut();
+
+        let mut camera = world.spawn(children![Name::new("test")]);
+        camera.insert(PixelCamera::default());
+
+        assert_eq!(camera.get::<Children>().unwrap().len(), 3);
+
+        camera.remove::<PixelCamera>();
+
+        let children = camera.get::<Children>().unwrap();
+        assert_eq!(children.len(), 1);
+        let child = children[0];
+        assert_eq!(world.get::<Name>(child).unwrap().as_str(), "test");
+    }
+
+    #[test]
+    fn test_high_resolution() {
+        let mut app = test_app();
+        let world = app.world_mut();
+
+        let target = RenderTarget::None {
+            size: UVec2 { x: 831, y: 124 },
+        };
+        let projection = Projection::Orthographic(OrthographicProjection {
+            far: 54.1e12,
+            ..OrthographicProjection::default_3d()
+        });
+        let mut camera = world.spawn((target, projection, children![Name::new("test")]));
+
+        assert_eq!(camera.get::<Children>().unwrap().len(), 1);
+
+        camera.insert(PixelCamera::default());
+
+        assert_eq!(camera.get::<Children>().unwrap().len(), 3);
+
+        assert!(!matches!(
+            camera.get::<RenderTarget>(),
+            Some(RenderTarget::None {
+                size: UVec2 { x: 831, y: 124 }
+            })
+        ));
+        assert_matches!(
+            camera.get::<Projection>(),
+            Some(Projection::Orthographic(OrthographicProjection {
+                far: 54.1e12,
+                ..
+            }))
+        );
+
+        camera.insert(HighResolution);
+
+        assert_matches!(
+            camera.get::<RenderTarget>(),
+            Some(RenderTarget::None {
+                size: UVec2 { x: 831, y: 124 }
+            })
+        );
+        assert!(!matches!(
+            camera.get::<Projection>(),
+            Some(Projection::Orthographic(OrthographicProjection {
+                far: 54.1e12,
+                ..
+            }))
+        ));
+
+        assert_eq!(camera.get::<Children>().unwrap().len(), 3);
+    }
+
+    fn test_app() -> App {
+        let mut app = App::new();
+
+        app.add_plugins((
+            TaskPoolPlugin::default(),
+            AssetPlugin::default(),
+            ImagePlugin::default(),
+            WindowPlugin::default(),
+        ));
+
+        app
+    }
 }

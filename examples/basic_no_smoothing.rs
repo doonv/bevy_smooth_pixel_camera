@@ -1,4 +1,4 @@
-//! Demonstrates simple usage of `bevy_smooth_pixel_camera`, without camera smoothing.
+//! Demonstrates simple usage of [`bevy_smooth_pixel_camera`], without camera smoothing.
 
 use bevy::prelude::*;
 use bevy_smooth_pixel_camera::prelude::*;

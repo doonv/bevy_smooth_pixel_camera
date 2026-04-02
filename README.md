@@ -2,7 +2,8 @@
 
 [![crates.io](https://img.shields.io/crates/v/bevy_smooth_pixel_camera?style=flat-square)](https://crates.io/crates/bevy_smooth_pixel_camera)
 [![docs.rs](https://img.shields.io/docsrs/bevy_smooth_pixel_camera?style=flat-square)](https://docs.rs/bevy_smooth_pixel_camera)
-![GitHub branch check runs](https://img.shields.io/github/check-runs/doonv/bevy_smooth_pixel_camera/main)
+![GitHub branch check runs](https://img.shields.io/github/check-runs/doonv/bevy_smooth_pixel_camera/main?style=flat-square)
+[![Following released Bevy versions](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue?style=flat-square)](https://bevy.org/learn/quick-start/plugin-development/#main-branch-tracking)
 
 <!-- WHEN UPDATING README WITH cargo rdme:
 Use --heading-base-level 0.
