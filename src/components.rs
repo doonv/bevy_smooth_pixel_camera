@@ -57,13 +57,21 @@ impl PixelCamera {
     }
 
     fn on_add(world: DeferredWorld, context: HookContext) {
-        fn inner(mut world: DeferredWorld, context: HookContext) -> Result<()> {
-            let entity = world.get_entity(context.entity)?;
+        fn inner(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) -> Result<()> {
+            let this = world.get_entity(entity)?;
 
             let (pixel_camera, camera, render_target) =
-                entity.get_components::<(&PixelCamera, &Camera, &RenderTarget)>()?;
+                this.get_components::<(&PixelCamera, &Camera, &RenderTarget)>()?;
 
-            validate_layers(entity, pixel_camera)?;
+            let camera_layers = this.get::<RenderLayers>();
+            if let Err(e) = validate_layers(camera_layers, &pixel_camera.viewport_layers) {
+                error!(
+                    r#"While validating RenderLayers for PixelCamera {entity}: {e}
+    RenderLayers: {camera_layers:?}
+    PixelCamera::viewport_layers: {:?}"#,
+                    &pixel_camera.viewport_layers
+                );
+            }
 
             if camera.order >= pixel_camera.viewport_order {
                 return Err("The camera is configured to render later or at the same time as of the viewport camera. (camera.order >= viewport_camera.order)".into());
@@ -106,7 +114,7 @@ impl PixelCamera {
                 .ok_or("resource Assets<Image> should exist, did you forget to add AssetPlugin?")?
                 .add(viewport_image);
             let pixel_camera = world
-                .get::<PixelCamera>(context.entity)
+                .get::<PixelCamera>(entity)
                 .expect("PixelCamera must exist in it's own on_add hook");
 
             let viewport_camera = (
@@ -133,7 +141,7 @@ impl PixelCamera {
             let mut viewport_sprite_id = Entity::PLACEHOLDER;
             world
                 .commands()
-                .entity(context.entity)
+                .entity(entity)
                 .insert(RenderTarget::from(viewport_image_handle))
                 .with_children(|cmd| {
                     viewport_camera_id = cmd.spawn(viewport_camera).id();
@@ -277,26 +285,27 @@ pub(crate) struct ViewportEntities {
     pub(crate) sprite: Entity,
 }
 
-fn validate_layers(camera: EntityRef, pixel_camera: &PixelCamera) -> Result<(), &'static str> {
-    if let Some(world_layers) = camera.get::<RenderLayers>() {
-        if world_layers.intersects(&pixel_camera.viewport_layers) {
+fn validate_layers(
+    world_layers: Option<&RenderLayers>,
+    viewport_layers: &RenderLayers,
+) -> Result<(), &'static str> {
+    if let Some(world_layers) = world_layers {
+        if world_layers.intersects(viewport_layers) {
             return Err(
-                "The render layers of the world intersect with the render layers of the viewport camera",
+                "The render layers of the world (PixelCamera) intersect with the render layers of the viewport camera.",
             );
         }
-    } else if pixel_camera
-        .viewport_layers
-        .intersects(&RenderLayers::default())
-    {
+    } else if viewport_layers.intersects(&RenderLayers::default()) {
         return Err(
-            "The render layers of the viewport camera intersect with the default render layer of the world",
+            "The render layers of the viewport camera intersect with the default render layer of the world.",
         );
-    } else if pixel_camera.viewport_layers == RenderLayers::none() {
-        return Err("The viewport camera has no render layers and will not be rendered");
+    } else if viewport_layers == &RenderLayers::none() {
+        return Err("The viewport camera has no render layers and will not be rendered.");
     }
 
     Ok(())
 }
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

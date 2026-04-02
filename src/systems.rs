@@ -42,12 +42,15 @@ pub(crate) fn update_viewport_size(
     for (pixel_camera, viewport, pixel_target) in &pixel_cameras {
         let (viewport_projection, viewport_target) = viewport_cameras.get_mut(viewport.camera)?;
 
-        let window_size = resolve_target_size(
+        let Ok(window_size) = resolve_target_size(
             viewport_target,
             &windows,
             primary_window.as_deref().copied(),
             &images,
-        )?;
+        ) else {
+            // Ignore the error for now, see https://github.com/doonv/bevy_smooth_pixel_camera/issues/4
+            continue;
+        };
 
         let (new_tex_size, new_scaling) = pixel_camera
             .viewport_size
@@ -149,12 +152,15 @@ pub(crate) fn update_high_resolution_viewport_size(
     images: Res<Assets<Image>>,
 ) -> Result<()> {
     for (projection, pixel_camera, render_target) in &mut pixel_cameras {
-        let window_size = resolve_target_size(
+        let Ok(window_size) = resolve_target_size(
             render_target,
             &windows,
             primary_window.as_deref().copied(),
             &images,
-        )?;
+        ) else {
+            // Ignore the error for now, see https://github.com/doonv/bevy_smooth_pixel_camera/issues/4
+            continue;
+        };
 
         let (_, new_scaling) = pixel_camera
             .viewport_size
