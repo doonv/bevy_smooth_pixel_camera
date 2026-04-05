@@ -1,318 +1,174 @@
+use crate::CAMERA_POSITION_OFFSET;
+use crate::components::{
+    HighResolution, PixelCamera, ViewportCamera, ViewportEntities, ViewportImage,
+};
+use bevy::camera::RenderTarget;
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
-use bevy::render::camera::{RenderTarget, ScalingMode};
-use bevy::render::render_resource::*;
-use bevy::render::view::RenderLayers;
 use bevy::window::{PrimaryWindow, WindowRef};
 
-use crate::components::*;
-use crate::prelude::ViewportSize;
-use crate::viewport::FitMode;
+/// Resolves the logical size of a [`RenderTarget`].
+pub(crate) fn resolve_target_size(
+    target: &RenderTarget,
+    window_query: &Query<&Window>,
+    primary_window: Option<Entity>,
+    images: &Assets<Image>,
+) -> Result<Vec2> {
+    match target {
+        RenderTarget::Window(window_ref) => {
+            let entity = match window_ref {
+                WindowRef::Primary => primary_window.ok_or("primary window doesn't exist")?,
+                &WindowRef::Entity(e) => e,
+            };
+            let window = window_query.get(entity)?;
 
-pub(crate) fn init_camera(
-    mut query: Query<
-        (&PixelCamera, &mut Camera, Option<&RenderLayers>, Entity),
-        Added<PixelCamera>,
-    >,
-    window_query: Query<&Window>,
-    mut images: ResMut<Assets<Image>>,
-    mut commands: Commands,
-) {
-    let window = window_query.single();
-
-    for (
-        PixelCamera {
-            viewport_order,
-            viewport_size,
-            viewport_layer,
-            smoothing,
-            ..
-        },
-        mut camera,
-        world_layer,
-        entity,
-    ) in &mut query
-    {
-        if let Some(world_layer) = world_layer {
-            if world_layer.intersects(viewport_layer) {
-                error!("The render layers of the world intersect with the render layers of the viewport camera");
-                return;
-            }
-        } else if viewport_layer.intersects(&RenderLayers::layer(0)) {
-            error!("The render layers of the viewport camera intersect with the default render layer of the world");
-            return;
-        } else if *viewport_layer == RenderLayers::none() {
-            error!("The viewport camera has no render layers and will be rendered on the world");
-            return;
+            Ok(Vec2::new(window.width(), window.height()))
         }
-
-        if &camera.order >= viewport_order {
-            error!("The camera is configured to render later or at the same time as of the viewport camera. (camera.order >= viewport_camera.order)");
-            return;
-        }
-
-        let mut size = viewport_size.calculate(&window.resolution);
-        if *smoothing {
-            size.width += 2;
-            size.height += 2;
-        }
-
-        // This is the texture that will be rendered to.
-        let mut image = Image {
-            texture_descriptor: TextureDescriptor {
-                label: None,
-                size,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Bgra8UnormSrgb,
-                mip_level_count: 1,
-                sample_count: 1,
-                usage: TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST
-                    | TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            },
-            ..default()
-        };
-
-        // fill image.data with zeroes
-        image.resize(size);
-
-        let image_handle = images.add(image);
-
-        camera.target = RenderTarget::Image(image_handle.clone());
-
-        let viewport_sprite = commands
-            .spawn((
-                SpriteBundle {
-                    texture: image_handle,
-                    transform: Transform::from_scale(Vec3::splat(1.0)),
-                    ..default()
-                },
-                *viewport_layer,
-                PixelViewport,
-            ))
-            .id();
-
-        let viewport_camera = commands
-            .spawn((
-                Camera2dBundle {
-                    camera: Camera {
-                        order: *viewport_order,
-                        clear_color: viewport_size.clear_color(),
-                        ..default()
-                    },
-                    projection: OrthographicProjection {
-                        far: 1000.,
-                        near: -1000.,
-                        scaling_mode: ScalingMode::Fixed {
-                            width: (size.width - 2) as f32,
-                            height: (size.height - 2) as f32,
-                        },
-                        ..default()
-                    },
-
-                    ..default()
-                },
-                ViewportCamera,
-                *viewport_layer,
-            ))
-            .id();
-
-        commands.entity(entity).insert(PixelViewportReferences {
-            sprite: viewport_sprite,
-            camera: viewport_camera,
-        });
+        RenderTarget::Image(handle) => Ok(images
+            .get(&handle.handle)
+            .ok_or("image not found")?
+            .size_f32()),
+        target => Err(format!("Unsupported result type {:?}", target))?,
     }
 }
 
 pub(crate) fn update_viewport_size(
-    primary_cameras: Query<
-        (Entity, &PixelCamera, &Camera, &PixelViewportReferences),
-        Without<ViewportCamera>,
-    >,
-    mut viewport_cameras: Query<(&mut OrthographicProjection, &mut Camera), With<ViewportCamera>>,
-    windows: Query<Ref<Window>>,
-    primary_window: Query<Ref<Window>, With<PrimaryWindow>>,
+    pixel_cameras: Query<(&PixelCamera, &ViewportEntities, &RenderTarget), Without<HighResolution>>,
+    mut viewport_cameras: Query<(&mut Projection, &RenderTarget), With<ViewportCamera>>,
+    windows: Query<&Window>,
+    primary_window: Option<Single<Entity, With<PrimaryWindow>>>,
     mut images: ResMut<Assets<Image>>,
-) {
-    for (
-        entity,
-        PixelCamera {
-            viewport_size,
-            smoothing,
-            ..
-        },
-        camera,
-        viewport,
-    ) in &primary_cameras
-    {
-        let Ok((mut viewport_projection, mut viewport_camera)) =
-            viewport_cameras.get_mut(viewport.camera)
-        else {
-            error!("PixelCamera {entity:?}'s viewport camera no longer exists.");
+) -> Result<()> {
+    for (pixel_camera, viewport, pixel_target) in &pixel_cameras {
+        let (viewport_projection, viewport_target) = viewport_cameras.get_mut(viewport.camera)?;
+
+        let Ok(window_size) = resolve_target_size(
+            viewport_target,
+            &windows,
+            primary_window.as_deref().copied(),
+            &images,
+        ) else {
+            // Ignore the error for now, see https://github.com/doonv/bevy_smooth_pixel_camera/issues/4
             continue;
         };
-        let (mut new_size, aspect_ratio) = match &viewport_camera.target {
-            RenderTarget::Window(window_ref) => {
-                let window = match window_ref {
-                    WindowRef::Primary => {
-                        if let Ok(window) = primary_window.get_single() {
-                            window
-                        } else {
-                            error!("The primary window that the PixelCamera is pointing to doesn't exist.");
-                            continue;
-                        }
-                    }
-                    &WindowRef::Entity(entity) => {
-                        if let Ok(window) = windows.get(entity) {
-                            window
-                        } else {
-                            error!("Window {entity:?} that the PixelCamera is pointing to doesn't exist.");
-                            continue;
-                        }
-                    }
-                };
-                if !window.is_changed() {
-                    continue;
-                }
 
-                let new_size = viewport_size.calculate(&window.resolution);
-                let aspect_ratio = window.width() / window.height();
+        let (new_tex_size, new_scaling) = pixel_camera
+            .viewport_size
+            .get_configuration(window_size, pixel_camera.smoothing);
 
-                (new_size, aspect_ratio)
-            }
-            RenderTarget::Image(image) => {
-                let image = images
-                    .get(image)
-                    .expect("RenderTarget::Image doesn't exist");
-                let size = image.size();
-
-                let new_size = Extent3d {
-                    width: size.x,
-                    height: size.y,
-                    ..default()
-                };
-                let aspect_ratio = size.x as f32 / size.y as f32;
-
-                (new_size, aspect_ratio)
-            }
-            RenderTarget::TextureView(_) => {
-                error_once!(
-                    "RenderTarget::TextureView is not yet supported for `bevy_smooth_pixel_camera`"
-                );
-                return;
-            }
-        };
-
-        viewport_projection.scaling_mode = if let ViewportSize::Fixed { fit, .. }
-        | ViewportSize::Custom { fit, .. } = viewport_size
+        // Update image size
+        if let RenderTarget::Image(image) = pixel_target
+            && let Some(img) = images.get_mut(&image.handle)
+            && img.texture_descriptor.size != new_tex_size
         {
-            match fit {
-                FitMode::Fit(clear_color) => {
-                    viewport_camera.clear_color = clear_color.clone();
-                    if aspect_ratio > new_size.width as f32 / new_size.height as f32 {
-                        ScalingMode::Fixed {
-                            width: new_size.height as f32 * (aspect_ratio),
-                            height: new_size.height as f32,
-                        }
-                    } else {
-                        ScalingMode::Fixed {
-                            width: new_size.width as f32,
-                            height: new_size.width as f32 / (aspect_ratio),
-                        }
-                    }
-                }
-                FitMode::Crop => {
-                    let axis = new_size.height.min(new_size.width);
-                    if aspect_ratio > 1.0 {
-                        ScalingMode::Fixed {
-                            width: axis as f32,
-                            height: axis as f32 / (aspect_ratio),
-                        }
-                    } else {
-                        ScalingMode::Fixed {
-                            width: axis as f32 * (aspect_ratio),
-                            height: axis as f32,
-                        }
-                    }
-                }
-                FitMode::Stretch => ScalingMode::Fixed {
-                    width: new_size.width as f32,
-                    height: new_size.height as f32,
-                },
-            }
-        } else {
-            ScalingMode::Fixed {
-                width: new_size.width as f32,
-                height: new_size.height as f32,
-            }
-        };
-
-        if *smoothing {
-            new_size.width += 2;
-            new_size.height += 2;
+            img.resize(new_tex_size);
         }
-        if let RenderTarget::Image(image_handle) = &camera.target {
-            if let Some(image) = images.get_mut(image_handle) {
-                image.resize(new_size);
-            } else {
-                error!("Pixel camera render target image doesn't exist!");
-            }
+
+        // Update projection
+        if let Projection::Orthographic(ortho) = viewport_projection.into_inner() {
+            ortho.scaling_mode = new_scaling;
         }
     }
+    Ok(())
 }
 
-/// Set the camera transform the rounded down version of the subpixel position
-pub(crate) fn set_camera_position(mut cameras: Query<(&PixelCamera, &mut Transform)>) {
-    for (PixelCamera { subpixel_pos, .. }, mut transform) in &mut cameras {
-        transform.translation.x = subpixel_pos.x.trunc();
-        transform.translation.y = subpixel_pos.y.trunc();
-    }
-}
-
-/// Smooth the camera's subpixel position
-#[allow(clippy::type_complexity)]
-pub(crate) fn smooth_camera(
-    mut cameras: Query<(&PixelCamera, &PixelViewportReferences)>,
-    mut viewports: Query<
-        (&mut Sprite, &Handle<Image>),
-        (With<PixelViewport>, Without<PixelViewportReferences>),
+/// Snaps the [`PixelCamera`] to the pixel grid while smoothing the positioning of the viewport.
+///
+/// We snap the [`GlobalTransform`] directly instead of the [`Transform`] so that we don't have to use a separate
+/// variable for the position of the camera.
+///
+/// This system runs after [`TransformSystems::Propagate`] to manually
+/// decouple the snapped world position from the smooth viewport position.
+pub(crate) fn snap_camera_position(
+    mut world_cameras: Query<
+        (&mut GlobalTransform, &ViewportEntities, &PixelCamera),
+        Without<HighResolution>,
     >,
-    images: Res<Assets<Image>>,
-) {
-    for (
-        PixelCamera {
-            subpixel_pos,
-            smoothing,
-            ..
-        },
-        viewport,
-    ) in &mut cameras
-    {
-        if !smoothing {
+    mut viewport_sprite_transform: Query<
+        (&mut Transform, &mut GlobalTransform),
+        (With<ViewportImage>, Without<PixelCamera>),
+    >,
+) -> Result<()> {
+    for (mut camera_global, viewport, pixel_camera) in &mut world_cameras {
+        let smooth_transform = camera_global.compute_transform();
+
+        // Project into local space to align snapping with the rotated pixel grid.
+        let local_translation = smooth_transform.rotation.inverse() * smooth_transform.translation
+            - Vec2::splat(0.5).extend(0.0);
+
+        let snapped_local_translation =
+            (local_translation.xy().round() + CAMERA_POSITION_OFFSET).extend(local_translation.z);
+
+        // Recompose the snapped world position.
+        let snapped_transform = smooth_transform
+            .with_translation(smooth_transform.rotation * snapped_local_translation);
+
+        let subpixel_offset = if pixel_camera.smoothing {
+            snapped_local_translation - local_translation
+        } else {
+            Vec3::ZERO
+        };
+
+        let (mut sprite_local, mut sprite_global_transform) =
+            viewport_sprite_transform.get_mut(viewport.sprite)?;
+        sprite_local.translation = sprite_local.translation.with_xy(subpixel_offset.xy());
+
+        // Manually update the child GlobalTransform since propagation is finished.
+        *sprite_global_transform = camera_global.mul_transform(*sprite_local);
+
+        // Overwrite the GlobalTransform with the snapped position for rendering.
+        *camera_global = GlobalTransform::from(snapped_transform);
+    }
+    Ok(())
+}
+
+pub(crate) fn sync_camera_fields(
+    pixel_cameras: Query<(Ref<PixelCamera>, &ViewportEntities), Without<HighResolution>>,
+    mut viewport_cameras: Query<(&mut RenderLayers, &mut Camera)>,
+) -> Result<()> {
+    for (pixel_camera, viewport) in pixel_cameras {
+        if !pixel_camera.is_changed() {
             continue;
         }
-        let (mut sprite, handle) = viewports.get_mut(viewport.sprite).unwrap();
-        let Some(image) = images.get(handle) else {
-            error!(
-                "Pixel camera viewport ({:?}) image doesn't exist",
-                viewport.sprite
-            );
+
+        let (mut viewport_camera_layers, mut viewport_camera) =
+            viewport_cameras.get_mut(viewport.camera)?;
+
+        *viewport_camera_layers = pixel_camera.viewport_layers.clone();
+        viewport_camera.order = pixel_camera.viewport_order;
+        if let Some(clear_color) = pixel_camera.viewport_size.clear_color() {
+            viewport_camera.clear_color = clear_color;
+        }
+    }
+
+    Ok(())
+}
+
+/// This mostly just for [`crate::viewport::ViewportScalingMode::Custom`].
+pub(crate) fn update_high_resolution_viewport_size(
+    mut pixel_cameras: Query<(&mut Projection, &PixelCamera, &RenderTarget), With<HighResolution>>,
+    windows: Query<&Window>,
+    primary_window: Option<Single<Entity, With<PrimaryWindow>>>,
+    images: Res<Assets<Image>>,
+) -> Result<()> {
+    for (projection, pixel_camera, render_target) in &mut pixel_cameras {
+        let Ok(window_size) = resolve_target_size(
+            render_target,
+            &windows,
+            primary_window.as_deref().copied(),
+            &images,
+        ) else {
+            // Ignore the error for now, see https://github.com/doonv/bevy_smooth_pixel_camera/issues/4
             continue;
         };
 
-        // In order to get smooth camera movement while retaining pixel perfection,
-        // we can move the viewport's transform by the remainder of the subpixel.
-        //
-        // The smoothing is based on this video: https://youtu.be/jguyR4yJb1M?t=98
-        let remainder = Vec2 {
-            x: subpixel_pos.x % 1.0,
-            // The y axis on sprite.rect is inverted, so we need to invert our y to counteract this.
-            y: -subpixel_pos.y % 1.0,
-        };
+        let (_, new_scaling) = pixel_camera
+            .viewport_size
+            .get_configuration(window_size, pixel_camera.smoothing);
 
-        sprite.rect = Some(Rect {
-            min: Vec2::ONE + remainder,
-            max: image.size_f32() - Vec2::ONE + remainder,
-        })
+        if let Projection::Orthographic(orthographic_projection) = projection.into_inner() {
+            orthographic_projection.scaling_mode = new_scaling;
+        }
     }
+    Ok(())
 }
