@@ -25,10 +25,12 @@
 //!     use bevy::prelude::*;
 //!     use bevy_smooth_pixel_camera::prelude::*;
 //!     
-//!     App::new().add_plugins((
-//!         DefaultPlugins.set(ImagePlugin::default_nearest()),
-//!         PixelCameraPlugin
-//!     )).run();
+//!     App::new()
+//!         .add_plugins((
+//!             DefaultPlugins.set(ImagePlugin::default_nearest()),
+//!             PixelCameraPlugin,
+//!         ))
+//!         .run();
 //!     ```
 //!
 //! 3. Add a [`PixelCamera`](crate::components::PixelCamera) to your world.
