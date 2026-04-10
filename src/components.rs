@@ -1,13 +1,20 @@
 //! The components of [`bevy_smooth_pixel_camera`](crate).
-
+use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
 use bevy::ecs::lifecycle::HookContext;
-use bevy::ecs::world::DeferredWorld;
+#[cfg(feature = "picking")]
+use bevy::picking::pointer::PointerLocation;
 use bevy::prelude::*;
-use bevy::render::render_resource::TextureFormat;
+use bevy::render::render_resource::{TextureFormat, TextureUsages};
 use bevy::window::PrimaryWindow;
 use std::mem;
+
+#[cfg(feature = "picking")]
+use bevy::asset::uuid::Uuid;
+use bevy::ecs::world::DeferredWorld;
+#[cfg(feature = "picking")]
+use bevy::picking::pointer::PointerId;
 
 use crate::viewport::ViewportScalingMode;
 
@@ -134,11 +141,16 @@ impl PixelCamera {
                 render_target,
                 pixel_camera.viewport_layers.clone(),
                 ViewportCamera,
+                #[cfg(feature = "picking")]
+                PointerId::Custom(Uuid::new_v4()),
             );
             let viewport_sprite = (
                 Sprite::from_image(viewport_image_handle.clone()),
                 pixel_camera.viewport_layers.clone(),
                 ViewportImage,
+                Transform::from_xyz(0.0, 0.0, -10.0),
+                #[cfg(feature = "picking")]
+                (Pickable::default(), PointerLocation::default()),
             );
             let mut viewport_camera_id = Entity::PLACEHOLDER;
             let mut viewport_sprite_id = Entity::PLACEHOLDER;

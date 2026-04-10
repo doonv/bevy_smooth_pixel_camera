@@ -46,6 +46,10 @@
 //!
 //! 4. That's it!
 //!
+//! ## Features
+//!
+//! `picking` **(default)** - Enables [picking] through the viewport.
+//!
 //! ## Bevy Compatibility
 //!
 //! | bevy   | bevy_smooth_pixel_camera |
@@ -61,6 +65,7 @@
 //!
 //! [`default_nearest`]: ImagePlugin::default_nearest
 //! [smoothing]: components::PixelCamera::smoothing
+//! [picking]: bevy::picking
 
 use bevy::prelude::*;
 
@@ -89,6 +94,27 @@ pub struct PixelCameraPlugin;
 impl Plugin for PixelCameraPlugin {
     fn build(&self, app: &mut App) {
         use systems::*;
+
+        #[cfg(feature = "picking")]
+        {
+            use bevy::picking::PickingSystems;
+
+            use crate::components::ViewportImage;
+
+            app.add_systems(First, viewport_picking.in_set(PickingSystems::PostInput));
+
+            // Remove when https://github.com/bevyengine/bevy/issues/23750 is fixed.
+            app.add_systems(
+                Update,
+                (|| warn!("`SpritePickingSettings`' `SpritePickingMode` must be set to `BoundingBox` in order for picking to work with `PixelCamera`s."))
+                .run_if(
+                    |s: Res<SpritePickingSettings>, p: Query<(), (With<Pickable>, Without<ViewportImage>)>| {
+                        !matches!(s.picking_mode, SpritePickingMode::BoundingBox) && !p.is_empty()
+                    },
+                )
+                .run_if(run_once),
+            );
+        }
 
         app.add_systems(
             PostUpdate,

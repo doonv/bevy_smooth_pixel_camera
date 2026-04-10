@@ -4,7 +4,17 @@ use crate::components::{
 };
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
+#[cfg(feature = "picking")]
+use bevy::ecs::message::MessageReader;
+#[cfg(feature = "picking")]
+use bevy::picking::events::PointerState;
+#[cfg(feature = "picking")]
+use bevy::picking::hover::HoverMap;
+#[cfg(feature = "picking")]
+use bevy::picking::pointer::{Location, PointerId, PointerInput, PointerLocation};
 use bevy::prelude::*;
+#[cfg(feature = "picking")]
+use bevy::sprite::Anchor;
 use bevy::window::{PrimaryWindow, WindowRef};
 
 /// Resolves the logical size of a [`RenderTarget`].
@@ -171,4 +181,116 @@ pub(crate) fn update_high_resolution_viewport_size(
         }
     }
     Ok(())
+}
+
+#[cfg(feature = "picking")]
+/// Handles picking logic.
+///
+/// Viewport entities that are being hovered or dragged will have all pointer inputs sent to them.
+///
+/// Based on [`bevy::ui::widget::viewport_picking`].
+pub fn viewport_picking(
+    mut commands: Commands,
+    pixel_cameras: Query<&ViewportEntities, Without<HighResolution>>,
+    viewport_cameras: Query<(&Camera, &GlobalTransform, &PointerId), With<ViewportCamera>>,
+    mut viewports: Query<
+        (
+            Entity,
+            &mut PointerLocation,
+            &GlobalTransform,
+            &Sprite,
+            &Anchor,
+        ),
+        With<ViewportImage>,
+    >,
+    hover_map: Res<HoverMap>,
+    pointer_state: Res<PointerState>,
+    mut pointer_inputs: MessageReader<PointerInput>,
+    images: Res<Assets<Image>>,
+    texture_atlas_layouts: Res<Assets<TextureAtlasLayout>>,
+) {
+    use bevy::camera::NormalizedRenderTarget;
+    use bevy::platform::collections::HashMap;
+
+    // Handle hovered entities.
+    let mut viewport_picks: HashMap<Entity, PointerId> = hover_map
+        .iter()
+        .flat_map(|(hover_pointer_id, hits)| {
+            hits.iter()
+                .filter(|(entity, _)| viewports.contains(**entity))
+                .map(|(entity, _)| (*entity, *hover_pointer_id))
+        })
+        .collect();
+
+    // Handle dragged entities, which need to be considered for dragging in and out of viewports.
+    for ((pointer_id, _), pointer_state) in pointer_state.pointer_buttons.iter() {
+        for &target in pointer_state
+            .dragging
+            .keys()
+            .filter(|&entity| viewports.contains(*entity))
+        {
+            viewport_picks.insert(target, *pointer_id);
+        }
+    }
+
+    for viewport_entities in &pixel_cameras {
+        let Ok((
+            viewport_entity,
+            mut viewport_pointer_location,
+            sprite_global_transform,
+            sprite_component,
+            &anchor,
+        )) = viewports.get_mut(viewport_entities.sprite)
+        else {
+            continue;
+        };
+
+        let Some(&pick_pointer_id) = viewport_picks.get(&viewport_entity) else {
+            // Lift the viewport pointer if it's not being used.
+            viewport_pointer_location.location = None;
+            continue;
+        };
+
+        let Ok((viewport_camera, viewport_camera_transform, &viewport_pointer_id)) =
+            viewport_cameras.get(viewport_entities.camera)
+        else {
+            continue;
+        };
+
+        for input in pointer_inputs
+            .read()
+            .filter(|i| i.pointer_id == pick_pointer_id)
+        {
+            // Map the physical window screen-space coordinate into the logical world-space coordinate
+            let Ok(world_pos) = viewport_camera
+                .viewport_to_world_2d(viewport_camera_transform, input.location.position)
+            else {
+                continue;
+            };
+
+            // Align to the specific viewport Sprite's rotated/scaled plane
+            let local_pos = sprite_global_transform
+                .affine()
+                .inverse()
+                .transform_point3(world_pos.extend(0.0))
+                .xy();
+
+            let logical_pos = sprite_component
+                .compute_pixel_space_point(local_pos, anchor, &images, &texture_atlas_layouts)
+                .unwrap_or_else(|v| v); // We don't care if the point goes out of bounds.
+
+            let location: Location = Location {
+                position: logical_pos,
+                target: NormalizedRenderTarget::Image(sprite_component.image.clone().into()),
+            };
+
+            viewport_pointer_location.location = Some(location.clone());
+
+            commands.write_message(PointerInput {
+                location,
+                pointer_id: viewport_pointer_id,
+                action: input.action,
+            });
+        }
+    }
 }

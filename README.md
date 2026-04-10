@@ -59,6 +59,10 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 
 4. That's it!
 
+## Features
+
+`picking` **(default)** - Enables [picking] through the viewport.
+
 ## Bevy Compatibility
 
 | bevy   | bevy_smooth_pixel_camera |
@@ -73,7 +77,8 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 [`main`]: https://github.com/doonv/bevy_smooth_pixel_camera
 
 <!-- [`default_nearest`]: ImagePlugin::default_nearest
-[smoothing]: components::PixelCamera::smoothing -->
+[smoothing]: components::PixelCamera::smoothing
+[picking]: bevy::picking -->
 
 <!-- cargo-rdme end -->
 
@@ -81,3 +86,4 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 [`ImagePlugin`]: https://docs.rs/bevy_image/latest/bevy_image/image/struct.ImagePlugin.html
 [`default_nearest`]: https://docs.rs/bevy_image/latest/bevy_image/struct.ImagePlugin.html#method.default_nearest
 [smoothing]: https://docs.rs/bevy_smooth_pixel_camera/latest/bevy_smooth_pixel_camera/components/struct.PixelCamera.html#structfield.smoothing
+[picking]: https://docs.rs/bevy/latest/bevy/picking/index.html
