@@ -101,17 +101,20 @@ impl PixelCamera {
                 .get_configuration(window_size, pixel_camera.smoothing);
 
             // This is the texture that will be rendered to.
-            let viewport_image = Image::new_target_texture(
+            let mut viewport_image = Image::new_target_texture(
                 size.width,
                 size.height,
                 TextureFormat::Rgba8UnormSrgb,
                 None,
             );
+            viewport_image.texture_descriptor.usage |= TextureUsages::COPY_SRC;
+            viewport_image.asset_usage = RenderAssetUsages::RENDER_WORLD;
+
             let render_target = render_target.clone();
 
             let viewport_image_handle = world
                 .get_resource_mut::<Assets<Image>>()
-                .ok_or("resource Assets<Image> should exist, did you forget to add AssetPlugin?")?
+                .ok_or("resource Assets<Image> should exist, bevy_smooth_pixel_camera expects AssetPlugin to be present")?
                 .add(viewport_image);
             let pixel_camera = world
                 .get::<PixelCamera>(entity)
