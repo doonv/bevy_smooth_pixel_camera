@@ -12,6 +12,9 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.89"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["picking"]
+picking = ["bevy/bevy_picking", "bevy/sprite_picking"]
 
 [dependencies]
 bevy = { version = "0.18.1", default-features = false, features = [
@@ -46,3 +49,4 @@ unwrap_used = "warn"
 todo = "warn"
 type_complexity = "allow"
 must_use_candidate = "warn"
+too_many_arguments = "allow"
