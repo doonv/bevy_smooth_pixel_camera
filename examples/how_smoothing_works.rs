@@ -63,12 +63,13 @@ fn update(
     window: Single<&Window>,
     mut gizmos: Gizmos,
 ) {
-    // Render a rectangle representing what the viewport would usually
+    // Render a rectangle representing what would usually be in the viewport
     gizmos.rect_2d(
         Isometry2d::from_translation(camera.translation.xy() + Vec2::splat(2.0 / 32.0)),
         (window.physical_size().as_vec2() / 32.0).ceil() + Vec2::splat(2.0 / 32.0),
         LIME,
     );
+
     camera.translation.x = (time.elapsed_secs() / 2.0).sin() * 10.0;
 
     icon.translation.y = time.elapsed_secs().sin() * 4.5;

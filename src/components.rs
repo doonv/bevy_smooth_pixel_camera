@@ -2,6 +2,7 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
+use bevy::ecs::entity_disabling::Disabled;
 use bevy::ecs::lifecycle::HookContext;
 #[cfg(feature = "picking")]
 use bevy::picking::pointer::PointerLocation;
@@ -257,6 +258,10 @@ pub struct ViewportImage;
 /// Makes this [`PixelCamera`] high resolution, it will have the same scaling, but
 /// the pixels will no longer be locked to the grid. This is useful for when you need to quickly
 /// check how the game looks when not locked to the grid.
+///
+/// Note that high resolution sprites (those on the [`PixelCamera::viewport_layers`]) will no longer
+/// always be rendered on top of pixel sprites. Make sure your Z values are set correctly
+// TODO: maybe workaround?
 #[derive(Component, Debug)]
 #[require(PixelCamera)]
 #[component(on_add = Self::swap, on_remove = Self::swap)]
@@ -266,7 +271,7 @@ impl HighResolution {
         world
             .commands()
             .queue(move |world: &mut World| -> Result<()> {
-                let &ViewportEntities { camera, .. } = world
+                let &ViewportEntities { camera, sprite } = world
                     .get(entity)
                     .ok_or("PixelCameraViewportEntities should exist")?;
                 let [mut world_camera, mut viewport_camera] =
@@ -287,6 +292,31 @@ impl HighResolution {
                     .ok_or("no Projection")?;
                 mem::swap(world_proj.into_inner(), viewport_proj.into_inner());
 
+                let viewport_layers = world_camera
+                    .get::<PixelCamera>()
+                    .expect(
+                        "PixelCamera must exist on hook for component that requires PixelCamera",
+                    )
+                    .viewport_layers
+                    .clone();
+                if let Some(mut world_layers) = world_camera.get_mut::<RenderLayers>() {
+                    if world_layers.intersects(&viewport_layers) {
+                        *world_layers = world_layers.symmetric_difference(&viewport_layers);
+                    } else {
+                        *world_layers = world_layers.union(&viewport_layers);
+                    }
+                } else {
+                    world
+                        .commands()
+                        .entity(entity)
+                        .insert(RenderLayers::default().union(&viewport_layers));
+                }
+                if world.get::<Disabled>(sprite).is_some() {
+                    world.entity_mut(sprite).remove::<Disabled>();
+                } else {
+                    world.entity_mut(sprite).insert(Disabled);
+                }
+
                 Ok(())
             });
     }
@@ -306,19 +336,21 @@ fn validate_layers(
 ) -> Result<(), &'static str> {
     if let Some(world_layers) = world_layers {
         if world_layers.intersects(viewport_layers) {
-            return Err(
+            Err(
                 "The render layers of the world (PixelCamera) intersect with the render layers of the viewport camera.",
-            );
+            )
+        } else {
+            Ok(())
         }
     } else if viewport_layers.intersects(&RenderLayers::default()) {
-        return Err(
+        Err(
             "The render layers of the viewport camera intersect with the default render layer of the world.",
-        );
+        )
     } else if viewport_layers == &RenderLayers::none() {
-        return Err("The viewport camera has no render layers and will not be rendered.");
+        Err("The viewport camera has no render layers and will not be rendered.")
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -443,8 +475,35 @@ mod tests {
                 ..
             }))
         ));
+        assert_eq!(
+            camera.get::<RenderLayers>(),
+            Some(&RenderLayers::default().union(&RenderLayers::layer(1)))
+        );
+
+        let sprite = camera.get::<ViewportEntities>().unwrap().sprite;
+        let camera_entity = camera.id();
+        assert!(world.get::<Disabled>(sprite).is_some());
+        let mut camera = world.entity_mut(camera_entity);
 
         assert_eq!(camera.get::<Children>().unwrap().len(), 3);
+
+        camera.remove::<HighResolution>();
+
+        assert!(!matches!(
+            camera.get::<RenderTarget>(),
+            Some(RenderTarget::None {
+                size: UVec2 { x: 831, y: 124 }
+            })
+        ));
+        assert_matches!(
+            camera.get::<Projection>(),
+            Some(Projection::Orthographic(OrthographicProjection {
+                far: 54.1e12,
+                ..
+            }))
+        );
+        assert_eq!(camera.get::<RenderLayers>(), Some(&RenderLayers::default()));
+        assert!(world.get::<Disabled>(sprite).is_none());
     }
 
     fn test_app() -> App {

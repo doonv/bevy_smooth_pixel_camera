@@ -36,7 +36,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         PixelCamera::from_size(ViewportScalingMode::PixelSize(32.0)),
         PanCamera {
             zoom_speed: 0.01,
-            pan_speed: 20.0,
+            pan_speed: 15.0,
             ..default()
         },
     ));

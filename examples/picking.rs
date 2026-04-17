@@ -11,13 +11,13 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             PixelCameraPlugin,
         ))
-        .add_systems(Startup, setup_scene)
         .insert_resource(SpritePickingSettings {
             // Setting BoundingBox is necessary for picking to work at the moment.
             // See https://github.com/bevyengine/bevy/issues/23750
             picking_mode: SpritePickingMode::BoundingBox,
             ..default()
         })
+        .add_systems(Startup, setup_scene)
         .run();
 }
 
