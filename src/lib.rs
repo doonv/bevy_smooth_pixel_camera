@@ -77,19 +77,21 @@ pub mod viewport;
 /// A [`SystemSet`] for [`PixelCameraPlugin`]'s systems.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum CameraSystems {
-    /// The system that updates the [`PixelCamera`](components::PixelCamera)'s position after every frame.
+    /// The system that snaps the [`PixelCamera`](components::PixelCamera)'s position to the grid after every frame.
     UpdatePosition,
     /// Other systems that update the properties of the camera.
     Update,
 }
 
-/// A tiny offset applied to the [`PixelCamera`](components::PixelCamera)'s final position every frame, this prevents the GPU from getting confused on
-/// certain pixel sizes and not rendering some pixels, causing artifacts.
+/// A tiny offset applied to the [`PixelCamera`](components::PixelCamera)'s final position every frame.
+///
+/// This prevents the GPU from getting confused on certain pixel sizes and not rendering some pixels, causing artifacts.
 ///
 /// This is exposed to you in the case it messes up the rendering of high resolution assets.
 pub const CAMERA_POSITION_OFFSET: Vec2 = Vec2::splat(0.01);
 
-/// Updates the [`PixelCamera`](components::PixelCamera), allowing for [smoothing](components::PixelCamera::smoothing) and viewport resizing with the window.
+/// Updates the [`PixelCamera`](components::PixelCamera), allowing for [smoothing](components::PixelCamera::smoothing),
+/// the viewport resizing with the window, and picking.
 pub struct PixelCameraPlugin;
 impl Plugin for PixelCameraPlugin {
     fn build(&self, app: &mut App) {
@@ -104,6 +106,7 @@ impl Plugin for PixelCameraPlugin {
             app.add_systems(First, viewport_picking.in_set(PickingSystems::PostInput));
 
             // Remove when https://github.com/bevyengine/bevy/issues/23750 is fixed.
+            #[cfg(debug_assertions)]
             app.add_systems(
                 Update,
                 (|| warn!("`SpritePickingSettings`' `SpritePickingMode` must be set to `BoundingBox` in order for picking to work with `PixelCamera`s."))

@@ -1,4 +1,5 @@
 //! The components of [`bevy_smooth_pixel_camera`](crate).
+
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
@@ -74,9 +75,9 @@ impl PixelCamera {
             let camera_layers = this.get::<RenderLayers>();
             if let Err(e) = validate_layers(camera_layers, &pixel_camera.viewport_layers) {
                 error!(
-                    r#"While validating RenderLayers for PixelCamera {entity}: {e}
+                    r"While validating RenderLayers for PixelCamera {entity}: {e}
     RenderLayers: {camera_layers:?}
-    PixelCamera::viewport_layers: {:?}"#,
+    PixelCamera::viewport_layers: {:?}",
                     &pixel_camera.viewport_layers
                 );
             }
@@ -225,9 +226,9 @@ impl PixelCamera {
             Ok(()) => (),
             Err(err) => {
                 if cfg!(test) {
-                    panic!("PixelCamera::on_remove: {:?}", err);
+                    panic!("PixelCamera::on_remove: {err}");
                 } else {
-                    error!("While deinitializing PixelCamera {}: {err}", context.entity)
+                    error!("While deinitializing PixelCamera {}: {err}", context.entity);
                 }
             }
         }
@@ -255,12 +256,13 @@ pub struct ViewportCamera;
 #[derive(Component, Debug)]
 pub struct ViewportImage;
 
-/// Makes this [`PixelCamera`] high resolution, it will have the same scaling, but
-/// the pixels will no longer be locked to the grid. This is useful for when you need to quickly
-/// check how the game looks when not locked to the grid.
+/// Makes this [`PixelCamera`] high resolution, disabling the pixelation effect.
+///
+/// The camera will have the same scaling, but the pixels will no longer be locked to the grid.
+/// This is useful for when you need to quickly check how the game looks when not locked to the grid.
 ///
 /// Note that high resolution sprites (those on the [`PixelCamera::viewport_layers`]) will no longer
-/// always be rendered on top of pixel sprites. Make sure your Z values are set correctly
+/// always be rendered on top of pixel sprites. Make sure your Z values are set correctly.
 // TODO: maybe workaround?
 #[derive(Component, Debug)]
 #[require(PixelCamera)]

@@ -38,7 +38,7 @@ pub(crate) fn resolve_target_size(
             .get(&handle.handle)
             .ok_or("image not found")?
             .size_f32()),
-        target => Err(format!("Unsupported result type {:?}", target))?,
+        target => Err(format!("Unsupported result type {target:?}"))?,
     }
 }
 
@@ -154,7 +154,14 @@ pub(crate) fn sync_camera_fields(
     Ok(())
 }
 
-/// This mostly just for [`crate::viewport::ViewportScalingMode::Custom`].
+/// Updates the viewport size of [`HighResolution`] [`PixelCamera`]s
+///
+/// This could've been done in the [`HighResolution`] hook by translating the [`ViewportScalingMode`]
+/// into Bevy's [`ScalingMode`], but that can't be done because of [`ViewportScalingMode::Custom`].
+///
+/// [`ViewportScalingMode`]: crate::viewport::ViewportScalingMode
+/// [`ScalingMode`]: bevy::camera::ScalingMode
+/// [`ViewportScalingMode::Custom`]: crate::viewport::ViewportScalingMode::Custom
 pub(crate) fn update_high_resolution_viewport_size(
     mut pixel_cameras: Query<(&mut Projection, &PixelCamera, &RenderTarget), With<HighResolution>>,
     windows: Query<&Window>,
@@ -223,7 +230,7 @@ pub fn viewport_picking(
         .collect();
 
     // Handle dragged entities, which need to be considered for dragging in and out of viewports.
-    for ((pointer_id, _), pointer_state) in pointer_state.pointer_buttons.iter() {
+    for ((pointer_id, _), pointer_state) in &pointer_state.pointer_buttons {
         for &target in pointer_state
             .dragging
             .keys()
