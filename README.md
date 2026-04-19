@@ -67,7 +67,7 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 
 | bevy   | bevy_smooth_pixel_camera |
 | ------ | ------------------------ |
-| 0.18.* | 0.4.0 - [`main`]         |
+| 0.18.* | 0.4.x - [`main`]         |
 | 0.13.* | 0.3.0                    |
 | 0.12.* | 0.1.0 - 0.2.1            |
 
