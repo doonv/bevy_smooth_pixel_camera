@@ -27,6 +27,13 @@ fn main() {
             picking_mode: SpritePickingMode::BoundingBox,
             ..default()
         })
+        .insert_gizmo_config(
+            DefaultGizmoConfigGroup,
+            GizmoConfig {
+                render_layers: RenderLayers::layer(1),
+                ..default()
+            },
+        )
         .add_systems(Startup, (setup, change_viewport_camera_zoom).chain())
         .add_systems(
             Update,
@@ -107,13 +114,7 @@ fn toggle_smoothing(mut pixel_camera: Single<&mut PixelCamera>) {
 
 fn change_viewport_camera_zoom(
     viewport_camera: Single<(&mut Projection, &mut Camera), With<ViewportCamera>>,
-    mut config: ResMut<GizmoConfigStore>,
 ) {
-    config
-        .config_mut::<DefaultGizmoConfigGroup>()
-        .0
-        .render_layers = RenderLayers::layer(1);
-
     let (mut projection, mut camera) = viewport_camera.into_inner();
 
     camera.clear_color = ClearColorConfig::Custom(Color::BLACK);

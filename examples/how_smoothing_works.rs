@@ -15,6 +15,14 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             PixelCameraPlugin,
         ))
+        .insert_gizmo_config(
+            DefaultGizmoConfigGroup,
+            GizmoConfig {
+                // Make gizmos appear on the high resolution layer
+                render_layers: RenderLayers::layer(1),
+                ..default()
+            },
+        )
         .add_systems(Startup, (setup, change_viewport_camera_zoom).chain())
         .add_systems(Update, update)
         .run();
@@ -36,14 +44,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 /// logic to give you a look behind the scenes.
 fn change_viewport_camera_zoom(
     viewport_camera: Single<(&mut Projection, &mut Camera), With<ViewportCamera>>,
-    mut config: ResMut<GizmoConfigStore>,
 ) {
-    // Make gizmos appear in high resolution
-    config
-        .config_mut::<DefaultGizmoConfigGroup>()
-        .0
-        .render_layers = RenderLayers::layer(1);
-
     let (mut projection, mut camera) = viewport_camera.into_inner();
 
     // Change the clear color to pure black for contrast.
