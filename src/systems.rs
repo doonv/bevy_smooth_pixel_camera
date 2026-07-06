@@ -68,7 +68,7 @@ pub(crate) fn update_viewport_size(
 
         // Update image size
         if let RenderTarget::Image(image) = pixel_target
-            && let Some(img) = images.get_mut(&image.handle)
+            && let Some(mut img) = images.get_mut(&image.handle)
             && img.texture_descriptor.size != new_tex_size
         {
             img.resize(new_tex_size);

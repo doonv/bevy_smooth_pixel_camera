@@ -17,7 +17,7 @@ default = ["picking"]
 picking = ["bevy/bevy_picking", "bevy/sprite_picking"]
 
 [dependencies]
-bevy = { version = "0.18.1", default-features = false, features = [
+bevy = { version = "0.19.0", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_sprite",
     "bevy_log",
@@ -25,7 +25,7 @@ bevy = { version = "0.18.1", default-features = false, features = [
 smallvec = "1"
 
 [dev-dependencies]
-bevy = { version = "0.18.1", default-features = false, features = [
+bevy = { version = "0.19.0", default-features = false, features = [
     "2d",
     "debug",
     "pan_camera",
