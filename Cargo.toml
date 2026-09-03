@@ -9,7 +9,7 @@ categories = ["game-development", "graphics", "rendering"]
 exclude = ["assets/", ".github/"]
 keywords = ["game", "graphics", "bevy", "pixel", "pixel-perfect"]
 license = "MIT OR Apache-2.0"
-rust-version = "1.89"
+rust-version = "1.95"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
