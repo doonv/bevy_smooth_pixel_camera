@@ -34,7 +34,7 @@ fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
         .observe(on_drag_rotate);
 }
 
-fn on_drag_rotate(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn on_drag_rotate(drag: On<PointerDrag>, mut transforms: Query<&mut Transform>) {
     if let Ok(mut transform) = transforms.get_mut(drag.entity) {
         transform.rotate_y(drag.delta.x * 0.2);
         transform.rotate_x(drag.delta.y * 0.2);

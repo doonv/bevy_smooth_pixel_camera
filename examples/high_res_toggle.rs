@@ -65,7 +65,7 @@ fn toggle_high_res(
     mut commands: Commands,
     mut text: Single<&mut TextSpan, With<HighResolutionStatus>>,
 ) {
-    let (pixel_camera, is_high_res) = *pixel_camera;
+    let (pixel_camera, is_high_res) = pixel_camera.into_inner();
     if is_high_res {
         commands.entity(pixel_camera).remove::<HighResolution>();
         text.replace_range(.., "on");
