@@ -300,7 +300,15 @@ impl HighResolution {
                 let viewport_proj = viewport_camera
                     .get_mut::<Projection>()
                     .ok_or("no Projection")?;
-                mem::swap(world_proj.into_inner(), viewport_proj.into_inner());
+                let world_proj = world_proj.into_inner();
+                let viewport_proj = viewport_proj.into_inner();
+                // Zoom belongs to each camera, rather than its render target.
+                if let (Projection::Orthographic(world), Projection::Orthographic(viewport)) =
+                    (&mut *world_proj, &mut *viewport_proj)
+                {
+                    mem::swap(&mut world.scale, &mut viewport.scale);
+                }
+                mem::swap(world_proj, viewport_proj);
 
                 let viewport_layers = world_camera
                     .get::<PixelCamera>()
@@ -540,6 +548,39 @@ mod tests {
                     assert!(world.get_entity(child).is_err());
                 }
             }
+        }
+    }
+
+    #[test]
+    fn high_resolution_preserves_zoom_in_both_directions() {
+        let mut app = test_app();
+        let world = app.world_mut();
+        let mut camera = world.spawn((
+            PixelCamera::default(),
+            Projection::Orthographic(OrthographicProjection {
+                scale: 2.0,
+                ..OrthographicProjection::default_2d()
+            }),
+        ));
+        for expected_zoom in [2.0, 3.0] {
+            camera.insert(HighResolution);
+            let Projection::Orthographic(projection) = camera.get::<Projection>().unwrap() else {
+                panic!("expected orthographic projection");
+            };
+            assert_eq!(projection.scale, expected_zoom);
+
+            // Changing zoom in high resolution mode must survive toggling back, too.
+            let Projection::Orthographic(projection) =
+                camera.get_mut::<Projection>().unwrap().into_inner()
+            else {
+                panic!("expected orthographic projection");
+            };
+            projection.scale = 3.0;
+            camera.remove::<HighResolution>();
+            let Projection::Orthographic(projection) = camera.get::<Projection>().unwrap() else {
+                panic!("expected orthographic projection");
+            };
+            assert_eq!(projection.scale, 3.0);
         }
     }
 
