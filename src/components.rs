@@ -198,6 +198,11 @@ impl PixelCamera {
             world
                 .commands()
                 .queue(move |world: &mut World| -> Result<()> {
+                    // Despawning already removes the viewport children. Only restore
+                    // the target and remove children when the camera entity survives.
+                    if world.get_entity(entity).is_err() {
+                        return Ok(());
+                    }
                     let viewport_entities = world
                         .get::<ViewportEntities>(entity)
                         .ok_or("PixelCameraViewportEntities should exist")?;
@@ -211,13 +216,12 @@ impl PixelCamera {
                         .ok_or("no RenderTarget")?;
                     mem::swap(world_target.into_inner(), viewport_target.into_inner());
 
+                    world.despawn(camera);
+                    world.despawn(image);
+                    world.entity_mut(entity).remove::<ViewportEntities>();
+
                     Ok(())
                 });
-
-            world.commands().entity(camera).despawn();
-            world.commands().entity(image).despawn();
-
-            world.commands().entity(entity).remove::<ViewportEntities>();
 
             Ok(())
         }
@@ -273,6 +277,10 @@ impl HighResolution {
         world
             .commands()
             .queue(move |world: &mut World| -> Result<()> {
+                // The removal hook also runs when the camera is being despawned.
+                if world.get::<PixelCamera>(entity).is_none() {
+                    return Ok(());
+                }
                 let &ViewportEntities { camera, sprite } = world
                     .get(entity)
                     .ok_or("PixelCameraViewportEntities should exist")?;
@@ -506,6 +514,33 @@ mod tests {
         );
         assert_eq!(camera.get::<RenderLayers>(), Some(&RenderLayers::default()));
         assert!(world.get::<Disabled>(sprite).is_none());
+    }
+
+    #[test]
+    fn despawn_pixel_camera_with_children() {
+        for high_resolution in [false, true] {
+            for deferred in [false, true] {
+                let mut app = test_app();
+                let world = app.world_mut();
+                let mut camera =
+                    world.spawn((PixelCamera::default(), children![Name::new("child")]));
+                if high_resolution {
+                    camera.insert(HighResolution);
+                }
+                let children = camera.get::<Children>().unwrap().to_vec();
+                let entity = camera.id();
+                if deferred {
+                    world.commands().entity(entity).despawn();
+                } else {
+                    world.despawn(entity);
+                }
+                world.flush();
+                assert!(world.get_entity(entity).is_err());
+                for child in children {
+                    assert!(world.get_entity(child).is_err());
+                }
+            }
+        }
     }
 
     fn test_app() -> App {
