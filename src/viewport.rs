@@ -145,11 +145,10 @@ impl ViewportScalingMode {
                     }
                 }
                 FitMode::Fill => {
-                    let axis = base.x.min(base.y);
-                    if aspect > 1.0 {
-                        (axis * aspect, axis)
+                    if aspect > base.x / base.y {
+                        (base.x, base.x / aspect)
                     } else {
-                        (axis, axis / aspect)
+                        (base.y * aspect, base.y)
                     }
                 }
                 FitMode::Stretch => (base.x, base.y),
@@ -176,5 +175,50 @@ impl ViewportScalingMode {
                 height: view_h,
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fill_covers_window_and_preserves_aspect_ratio() {
+        for base in [Vec2::new(320.0, 180.0), Vec2::new(180.0, 320.0)] {
+            for window in [
+                Vec2::new(2100.0, 900.0),
+                Vec2::new(800.0, 600.0),
+                Vec2::new(600.0, 900.0),
+                base * 3.0,
+            ] {
+                for mode in [
+                    ViewportScalingMode::Fixed {
+                        width: base.x,
+                        height: base.y,
+                        fit: FitMode::Fill,
+                    },
+                    ViewportScalingMode::Custom {
+                        func: if base.x > base.y {
+                            |_| Vec2::new(320.0, 180.0)
+                        } else {
+                            |_| Vec2::new(180.0, 320.0)
+                        },
+                        fit: FitMode::Fill,
+                    },
+                ] {
+                    let (_, ScalingMode::Fixed { width, height }) =
+                        mode.get_configuration(window, false)
+                    else {
+                        panic!("expected fixed scaling");
+                    };
+                    assert!(
+                        width <= base.x && height <= base.y,
+                        "view {width}x{height} exceeds image {base} for window {window}"
+                    );
+                    assert!(width == base.x || height == base.y);
+                    assert!((width / height - window.x / window.y).abs() < 0.00001);
+                }
+            }
+        }
     }
 }

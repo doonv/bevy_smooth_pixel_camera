@@ -73,6 +73,15 @@ to a pixel grid. It works by moving the canvas in the opposite direction of the 
 | 0.13.* | 0.3.0                    |
 | 0.12.* | 0.1.0 - 0.2.1            |
 
+## License
+
+All code in this repository is dual-licensed under either:
+
+* MIT License ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+
+at your option.
+
 [smoothing_off]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_off.avif
 [smoothing_on]: https://raw.githubusercontent.com/doonv/bevy_smooth_pixel_camera/main/assets/smoothing_on.avif
 [`how_smoothing_works`]: https://github.com/doonv/bevy_smooth_pixel_camera/blob/main/examples/how_smoothing_works.rs

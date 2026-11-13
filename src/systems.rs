@@ -146,16 +146,30 @@ pub(crate) fn snap_camera_position(
 }
 
 pub(crate) fn sync_camera_fields(
-    pixel_cameras: Query<(Ref<PixelCamera>, &ViewportEntities), Without<HighResolution>>,
-    mut viewport_cameras: Query<(&mut RenderLayers, &mut Camera)>,
+    pixel_cameras: Query<
+        (
+            Ref<PixelCamera>,
+            &ViewportEntities,
+            &Camera,
+            Has<HighResolution>,
+        ),
+        Without<ViewportCamera>,
+    >,
+    mut viewport_cameras: Query<
+        (&mut RenderLayers, &mut Camera),
+        (With<ViewportCamera>, Without<PixelCamera>),
+    >,
 ) -> Result<()> {
-    for (pixel_camera, viewport) in pixel_cameras {
-        if !pixel_camera.is_changed() {
-            continue;
-        }
-
+    for (pixel_camera, viewport, camera, high_resolution) in pixel_cameras {
         let (mut viewport_camera_layers, mut viewport_camera) =
             viewport_cameras.get_mut(viewport.camera)?;
+
+        if viewport_camera.is_active != camera.is_active {
+            viewport_camera.is_active = camera.is_active;
+        }
+        if high_resolution || !pixel_camera.is_changed() {
+            continue;
+        }
 
         *viewport_camera_layers = pixel_camera.viewport_layers.clone();
         viewport_camera.order = pixel_camera.viewport_order;
@@ -311,6 +325,52 @@ pub fn viewport_picking(
                 pointer_id: viewport_pointer_id,
                 action: input.action,
             });
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn viewport_tracks_camera_activation_and_reactivation() {
+        let mut app = App::new();
+        app.add_plugins((
+            TaskPoolPlugin::default(),
+            AssetPlugin::default(),
+            ImagePlugin::default(),
+            WindowPlugin::default(),
+        ));
+        app.add_systems(PostUpdate, sync_camera_fields);
+        let entity = app
+            .world_mut()
+            .spawn((
+                PixelCamera::default(),
+                Camera {
+                    is_active: false,
+                    ..default()
+                },
+            ))
+            .id();
+        let viewport = app.world().get::<ViewportEntities>(entity).unwrap().camera;
+        for high_resolution in [false, true, false] {
+            if high_resolution {
+                app.world_mut().entity_mut(entity).insert(HighResolution);
+            } else {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .remove::<HighResolution>();
+            }
+            for active in [false, true, false] {
+                app.world_mut().get_mut::<Camera>(entity).unwrap().is_active = active;
+                app.update();
+                assert_eq!(
+                    app.world().get::<Camera>(viewport).unwrap().is_active,
+                    active
+                );
+            }
         }
     }
 }
