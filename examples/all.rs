@@ -98,7 +98,7 @@ fn toggle_high_res(
     mut commands: Commands,
     mut text: Single<&mut TextSpan, With<HighResolutionStatus>>,
 ) {
-    let (pixel_camera, is_high_res) = *pixel_camera;
+    let (pixel_camera, is_high_res) = pixel_camera.into_inner();
     if is_high_res {
         commands.entity(pixel_camera).remove::<HighResolution>();
         text.replace_range(.., "on");
@@ -144,7 +144,7 @@ fn update(mut icon: Single<&mut Transform, With<BevyIcon>>, time: Res<Time>) {
     icon.translation.y = time.elapsed_secs().sin() * 4.5;
 }
 
-fn on_drag_rotate(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn on_drag_rotate(drag: On<PointerDrag>, mut transforms: Query<&mut Transform>) {
     if let Ok(mut transform) = transforms.get_mut(drag.entity) {
         transform.rotate_y(drag.delta.x * 0.10);
         transform.rotate_x(drag.delta.y * 0.10);

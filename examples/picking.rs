@@ -29,12 +29,13 @@ fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             Sprite::from_image(asset_server.load("bevy_pixel_dark.png")),
+            Transform::from_xyz(0.0, 0.0, 1.0),
             Pickable::default(),
         ))
         .observe(on_drag_rotate);
 }
 
-fn on_drag_rotate(drag: On<Pointer<Drag>>, mut transforms: Query<&mut Transform>) {
+fn on_drag_rotate(drag: On<PointerDrag>, mut transforms: Query<&mut Transform>) {
     if let Ok(mut transform) = transforms.get_mut(drag.entity) {
         transform.rotate_y(drag.delta.x * 0.2);
         transform.rotate_x(drag.delta.y * 0.2);
