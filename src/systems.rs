@@ -333,10 +333,14 @@ pub fn viewport_picking(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[cfg(feature = "picking")]
+    use bevy::picking::pointer::PointerMap;
 
     #[test]
     fn viewport_tracks_camera_activation_and_reactivation() {
         let mut app = App::new();
+        #[cfg(feature = "picking")]
+        app.init_resource::<PointerMap>();
         app.add_plugins((
             TaskPoolPlugin::default(),
             AssetPlugin::default(),
