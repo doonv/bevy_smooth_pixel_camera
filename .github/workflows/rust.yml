@@ -28,7 +28,9 @@ jobs:
         if: runner.os == 'linux'
         run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
       - name: Run cargo check
-        run: cargo check
+        run: cargo check --all-targets
+      - name: Check without picking
+        run: cargo check --lib --no-default-features
 
   test:
     name: Test

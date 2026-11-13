@@ -359,6 +359,8 @@ fn validate_layers(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[cfg(feature = "picking")]
+    use bevy::picking::pointer::PointerMap;
     use std::assert_matches;
 
     #[test]
@@ -510,6 +512,10 @@ mod tests {
 
     fn test_app() -> App {
         let mut app = App::new();
+
+        // PointerId hooks in Bevy 0.20 require the map normally added by PickingPlugin.
+        #[cfg(feature = "picking")]
+        app.init_resource::<PointerMap>();
 
         app.add_plugins((
             TaskPoolPlugin::default(),

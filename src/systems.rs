@@ -43,13 +43,20 @@ pub(crate) fn resolve_target_size(
 }
 
 pub(crate) fn update_viewport_size(
-    pixel_cameras: Query<(&PixelCamera, &ViewportEntities, &RenderTarget), Without<HighResolution>>,
-    mut viewport_cameras: Query<(&mut Projection, &RenderTarget), With<ViewportCamera>>,
+    mut pixel_cameras: Query<
+        (&PixelCamera, &ViewportEntities, &mut RenderTarget),
+        Without<HighResolution>,
+    >,
+    mut viewport_cameras: Query<
+        (&mut Projection, &RenderTarget),
+        (With<ViewportCamera>, Without<PixelCamera>),
+    >,
+    mut viewport_sprites: Query<&mut Sprite, With<ViewportImage>>,
     windows: Query<&Window>,
     primary_window: Option<Single<Entity, With<PrimaryWindow>>>,
     mut images: ResMut<Assets<Image>>,
 ) -> Result<()> {
-    for (pixel_camera, viewport, pixel_target) in &pixel_cameras {
+    for (pixel_camera, viewport, mut pixel_target) in &mut pixel_cameras {
         let (viewport_projection, viewport_target) = viewport_cameras.get_mut(viewport.camera)?;
 
         let Ok(window_size) = resolve_target_size(
@@ -66,12 +73,18 @@ pub(crate) fn update_viewport_size(
             .viewport_size
             .get_configuration(window_size, pixel_camera.smoothing);
 
-        // Update image size
-        if let RenderTarget::Image(image) = pixel_target
-            && let Some(mut img) = images.get_mut(&image.handle)
+        // Bevy 0.20's sprite material retains the old GPU texture when an image is
+        // resized in place. A new handle makes it bind the replacement texture.
+        if let RenderTarget::Image(image) = pixel_target.as_ref()
+            && let Some(img) = images.get(&image.handle)
             && img.texture_descriptor.size != new_tex_size
         {
+            let mut img = img.clone();
             img.resize(new_tex_size);
+            img.copy_on_resize = false;
+            let handle = images.add(img);
+            viewport_sprites.get_mut(viewport.sprite)?.image = handle.clone();
+            *pixel_target = RenderTarget::from(handle);
         }
 
         // Update projection

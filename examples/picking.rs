@@ -29,6 +29,7 @@ fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             Sprite::from_image(asset_server.load("bevy_pixel_dark.png")),
+            Transform::from_xyz(0.0, 0.0, 1.0),
             Pickable::default(),
         ))
         .observe(on_drag_rotate);
