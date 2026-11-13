@@ -1,6 +1,6 @@
 [package]
 name = "bevy_smooth_pixel_camera"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 description = "Smooth pixel-perfect camera for Bevy"
 repository = "https://github.com/doonv/bevy_smooth_pixel_camera"
